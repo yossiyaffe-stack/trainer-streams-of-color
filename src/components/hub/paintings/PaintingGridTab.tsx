@@ -112,16 +112,16 @@ export function PaintingGridTab() {
                   <img src={painting.preview} alt="" className="w-full h-full object-cover" />
                   <StatusDot status={painting.status} />
                   
-                  {/* Selection checkbox */}
-                  <div 
-                    className={cn(
-                      "absolute top-2 right-2 w-5 h-5 rounded border-2 flex items-center justify-center transition-all cursor-pointer",
-                      isSelected ? "bg-primary border-primary text-primary-foreground" : "border-white/50 bg-black/30 opacity-0 group-hover:opacity-100"
-                    )}
-                    onClick={(e) => toggleSelection(painting.id, e)}
+                  {/* Quick delete button */}
+                  <button
+                    className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 hover:bg-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deletePaintings([painting.id]);
+                    }}
                   >
-                    {isSelected && <span className="text-xs">✓</span>}
-                  </div>
+                    <X className="w-3.5 h-3.5 text-white" />
+                  </button>
                   
                   {painting.linkedSubtypes?.length > 0 && (
                     <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-xs bg-primary text-primary-foreground flex items-center gap-1">
