@@ -1,10 +1,12 @@
 import { useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import { Upload, Image, Loader2, Check, AlertCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Upload, Image, Loader2, Check, AlertCircle, X, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { PaintingDetailModal } from './PaintingDetailModal';
+import type { Painting, PaintingAnalysis } from '@/types/paintings';
 
 interface PaintingUploadProps {
   onUploadComplete?: () => void;
@@ -17,12 +19,14 @@ interface UploadingFile {
   status: 'pending' | 'uploading' | 'analyzing' | 'complete' | 'error';
   progress: number;
   error?: string;
+  paintingData?: Painting; // Store the saved painting data for viewing
 }
 
 export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
   const [files, setFiles] = useState<UploadingFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedPainting, setSelectedPainting] = useState<Painting | null>(null);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -100,38 +104,48 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
 
         const analysis = analysisData.analysis;
 
-        // Save to database
-        const { error: dbError } = await supabase
+        // Save to database and get the created record
+        const paintingRecord = {
+          image_url: imageUrl,
+          thumbnail_url: imageUrl,
+          original_filename: uploadFile.file.name,
+          title: analysis.title_suggestion,
+          artist: analysis.artist_detected,
+          era: analysis.era_detected,
+          ai_analysis: analysis,
+          fabrics: [...(analysis.fabrics?.primary || []), ...(analysis.fabrics?.secondary || [])],
+          silhouette: analysis.silhouette?.primary,
+          neckline: analysis.neckline,
+          sleeves: analysis.sleeves,
+          color_mood: analysis.colors?.color_mood,
+          palette_effect: analysis.palette_effect,
+          prints_patterns: analysis.prints_patterns,
+          jewelry_types: analysis.jewelry_accessories?.items,
+          mood_primary: analysis.mood?.primary,
+          mood_secondary: analysis.mood?.secondary,
+          suggested_season: analysis.suggested_seasons?.primary,
+          best_for: analysis.best_for,
+          client_talking_points: analysis.client_talking_points,
+          status: 'analyzed',
+          analyzed_at: new Date().toISOString(),
+        };
+
+        const { data: savedPainting, error: dbError } = await supabase
           .from('paintings')
-          .insert({
-            image_url: imageUrl,
-            thumbnail_url: imageUrl,
-            original_filename: uploadFile.file.name,
-            title: analysis.title_suggestion,
-            artist: analysis.artist_detected,
-            era: analysis.era_detected,
-            ai_analysis: analysis,
-            fabrics: [...(analysis.fabrics?.primary || []), ...(analysis.fabrics?.secondary || [])],
-            silhouette: analysis.silhouette?.primary,
-            neckline: analysis.neckline,
-            sleeves: analysis.sleeves,
-            color_mood: analysis.colors?.color_mood,
-            palette_effect: analysis.palette_effect,
-            prints_patterns: analysis.prints_patterns,
-            jewelry_types: analysis.jewelry_accessories?.items,
-            mood_primary: analysis.mood?.primary,
-            mood_secondary: analysis.mood?.secondary,
-            suggested_season: analysis.suggested_seasons?.primary,
-            best_for: analysis.best_for,
-            client_talking_points: analysis.client_talking_points,
-            status: 'analyzed',
-            analyzed_at: new Date().toISOString(),
-          });
+          .insert(paintingRecord)
+          .select()
+          .single();
 
         if (dbError) throw dbError;
 
+        // Store the painting data for viewing
+        const typedPainting = {
+          ...savedPainting,
+          ai_analysis: savedPainting.ai_analysis as PaintingAnalysis | null,
+        } as Painting;
+
         setFiles(prev => prev.map(f => 
-          f.id === uploadFile.id ? { ...f, status: 'complete', progress: 100 } : f
+          f.id === uploadFile.id ? { ...f, status: 'complete', progress: 100, paintingData: typedPainting } : f
         ));
 
         toast.success(`Analyzed: ${analysis.title_suggestion}`);
@@ -250,7 +264,14 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
                 key={file.id}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="relative aspect-square rounded-lg overflow-hidden border border-border"
+                className={`relative aspect-square rounded-lg overflow-hidden border border-border group ${
+                  file.status === 'complete' ? 'cursor-pointer hover:border-primary' : ''
+                }`}
+                onClick={() => {
+                  if (file.status === 'complete' && file.paintingData) {
+                    setSelectedPainting(file.paintingData);
+                  }
+                }}
               >
                 <img
                   src={file.preview}
@@ -258,9 +279,22 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
                   className="w-full h-full object-cover"
                 />
                 
+                {/* Remove button for pending files */}
+                {file.status === 'pending' && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFiles(prev => prev.filter(f => f.id !== file.id));
+                    }}
+                    className="absolute top-1 right-1 w-6 h-6 bg-black/60 hover:bg-destructive rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="w-4 h-4 text-white" />
+                  </button>
+                )}
+                
                 {/* Status Overlay */}
-                <div className={`absolute inset-0 flex items-center justify-center ${
-                  file.status === 'complete' ? 'bg-green-500/80' :
+                <div className={`absolute inset-0 flex items-center justify-center transition-colors ${
+                  file.status === 'complete' ? 'bg-green-500/80 group-hover:bg-primary/80' :
                   file.status === 'error' ? 'bg-red-500/80' :
                   file.status !== 'pending' ? 'bg-black/60' : ''
                 }`}>
@@ -277,10 +311,21 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
                     </div>
                   )}
                   {file.status === 'complete' && (
-                    <Check className="w-8 h-8 text-white" />
+                    <div className="text-center text-white">
+                      <div className="group-hover:hidden">
+                        <Check className="w-8 h-8" />
+                      </div>
+                      <div className="hidden group-hover:block">
+                        <Eye className="w-6 h-6 mx-auto mb-1" />
+                        <p className="text-xs font-medium">View Details</p>
+                      </div>
+                    </div>
                   )}
                   {file.status === 'error' && (
-                    <AlertCircle className="w-8 h-8 text-white" />
+                    <div className="text-center text-white">
+                      <AlertCircle className="w-6 h-6 mx-auto mb-1" />
+                      <p className="text-xs">{file.error || 'Error'}</p>
+                    </div>
                   )}
                 </div>
 
@@ -295,6 +340,16 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
           </div>
         </div>
       )}
+
+      {/* Detail Modal for completed paintings */}
+      <AnimatePresence>
+        {selectedPainting && (
+          <PaintingDetailModal
+            painting={selectedPainting}
+            onClose={() => setSelectedPainting(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
