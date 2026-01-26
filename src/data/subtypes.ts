@@ -112,6 +112,47 @@ export const SEASONS: { id: Season; name: string; description: string; gradient:
 
 export const SPRING_SUBTYPES: Subtype[] = [
   {
+    id: 'wildflower-spring',
+    name: 'Wildflower Spring',
+    season: 'spring',
+    beautyStatement: 'Delicate, romantic, whimsical Spring with Dutch master sensibility',
+    palette: {
+      skinTones: ['Blush', 'Rose', 'Pink', 'Red/White Geranium', 'Coral', 'Peach', 'Pale Peach'],
+      neutrals: ['Caramel', 'Golden Brown', 'Green/Brown', 'Amber', 'Cocoa', 'Grey/Brown', 'Fawn', 'Cordovan'],
+      formal: ['Indigo', 'Navy', 'Denim'],
+      romantic: ['Coral', 'Rose', 'Pink'],
+      hairColor: ['Caramel', 'Golden Brown', 'Amber', 'Cocoa'],
+      enlivened: ['Kelly Green', 'Soft Emerald', 'Seafoam', 'Mint', 'Moss'],
+      pastels: ['Vanilla', 'Ivory', 'Lemon Yellow', 'Buttercream', 'Pink/Cream'],
+      highNote: ['Periwinkle', 'Blueberry', 'Baby Blue', 'Sky Blue'],
+      metallics: ['Gold', 'Silver'],
+    },
+    colorCombinations: [
+      'Cream, Lemon Yellow and Blush',
+      'Black Velvet, Silver and Ivory',
+      'Seafoam and Emerald',
+      'Geranium and Cocoa',
+      'Rose, Lilac and Fawn',
+      'Caramel, Chocolate and Cream',
+      'Lavender and Gold',
+      'Coral and Aqua',
+    ],
+    fabrics: ['Tulle Trim', 'Ruched Fabric', 'Embroidery', 'Appliqué', 'Floral Print', 'Crocheted Lace', 'Eyelet', 'Paisley', 'Suede', 'Velvet', 'Small Tweeds', 'Gingham', 'Patchwork'],
+    prints: ['Florals', 'Butterflies', 'Whimsical Prints', 'Dutch Knits', 'Trompe L\'oeil', 'Purple/Blue/Green Plaid'],
+    paletteEffects: ['Girl with a Pearl Earring', 'Fawn in a Field of Wildflowers', 'Bouquet of Flowers in a Vase', 'Milk Maiden'],
+    style: {
+      details: ['Romantic layers', 'Whimsical accessories', 'Soft textures'],
+    },
+    jewelry: {
+      styles: ['Enamel', 'Cloisonné', 'Wildflowers', 'Whimsical Charms', 'Clover', 'Celtic Knots', 'Pearls', 'Fleur-de-lis'],
+      metals: { perfect: ['Gold', 'Silver'] },
+      stones: { perfect: ['Pearl', 'Blue Topaz', 'Amethyst'] },
+    },
+    eras: ['1600s Dutch', 'Rembrandt and Vermeer', '1700s French Romantic', '1930s Europe', 'Milk Maiden'],
+    artists: ['Vermeer', 'Rembrandt', 'Van Gogh', 'Degas'],
+    designers: ['Miu Miu', 'Marni', 'Chanel'],
+  },
+  {
     id: 'french-spring',
     name: 'French Spring',
     season: 'spring',
@@ -166,6 +207,40 @@ export const SPRING_SUBTYPES: Subtype[] = [
     },
     eras: ['1800\'s French Dress', '1800\'s Dutch', 'Gibson Girl', 'Turn of the century American Fashion', 'Japanese Kimono'],
     artists: ['Mary Cassatt', 'Renoir', 'Odilon Redon'],
+  },
+  {
+    id: 'early-spring',
+    name: 'Early Spring',
+    season: 'spring',
+    beautyStatement: 'The first delicate touches of Spring - soft, fresh, awakening',
+    palette: {
+      skinTones: ['Soft Pink', 'Blush', 'Peach', 'Cream'],
+      romantic: ['Rose', 'Dusty Mauve', 'Raspberry', 'Soft Purple'],
+      formal: ['Teal', 'Deep Blue-Green', 'Navy'],
+      neutrals: ['Soft Gray', 'Taupe', 'Rose Beige'],
+      enlivened: ['Teal', 'Aquamarine', 'Seafoam'],
+      pastels: ['Soft Pink', 'Lavender', 'Cream', 'Sage'],
+      metallics: ['Rose Gold', 'Silver'],
+    },
+    colorCombinations: [
+      'Soft Pink and Teal',
+      'Cream and Seafoam',
+      'Lavender and Rose',
+      'Blush and Navy',
+      'Taupe and Aquamarine',
+    ],
+    fabrics: ['Silk', 'Fine Cotton', 'Chiffon', 'Cashmere', 'Fine Knit', 'Crêpe', 'Eyelet'],
+    prints: ['Cherry Blossoms', 'Seashells', 'Butterflies', 'Delicate Florals', 'Birds', 'First Flowers'],
+    paletteEffects: ['Cherry Blossoms', 'First Flowers', 'Morning Dew', 'New Growth'],
+    style: {
+      details: ['Delicate layers', 'Soft textures', 'Fresh, awakening looks'],
+    },
+    jewelry: {
+      metals: { perfect: ['Rose Gold', 'Silver'] },
+      stones: { perfect: ['Aquamarine', 'Rose Quartz', 'Pearl', 'Blue Topaz'] },
+      styles: ['Delicate chains', 'Floral motifs', 'Spring-inspired'],
+    },
+    eras: ['Edwardian', 'Early 1900s', 'French Romantic'],
   },
 ];
 
