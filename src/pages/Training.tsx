@@ -9,6 +9,7 @@ import { BulkTrainingTab } from '@/components/training/BulkTrainingTab';
 import { PhotoGridView } from '@/components/training/PhotoGridView';
 import { ProgressDashboard } from '@/components/training/ProgressDashboard';
 import { BatchReanalysis } from '@/components/training/BatchReanalysis';
+import { SubtypeManager } from '@/components/training/SubtypeManager';
 import { SAMPLE_SUBTYPES } from '@/data/subtypes';
 import { BulkPhoto } from '@/types/training';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -23,7 +24,8 @@ import {
   Loader2,
   Table2,
   LayoutGrid,
-  FlaskConical
+  FlaskConical,
+  Palette
 } from 'lucide-react';
 
 export default function Training() {
@@ -135,8 +137,8 @@ export default function Training() {
                 Re-Analysis
               </TabsTrigger>
               <TabsTrigger value="subtypes" className="gap-2 data-[state=active]:bg-background">
-                <BookOpen className="w-4 h-4" />
-                Subtypes
+                <Palette className="w-4 h-4" />
+                Manage Subtypes
               </TabsTrigger>
             </TabsList>
 
@@ -221,22 +223,7 @@ export default function Training() {
 
             {/* Manage Subtypes Tab */}
             <TabsContent value="subtypes" className="space-y-6">
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {SAMPLE_SUBTYPES.map((subtype) => (
-                  <div 
-                    key={subtype.id}
-                    className={`p-4 rounded-xl season-card-${subtype.season} border border-border/50`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium">{subtype.name}</h4>
-                      <span className="text-xs text-muted-foreground capitalize">{subtype.season}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {subtype.paletteEffects.slice(0, 2).join(' • ')}
-                    </p>
-                  </div>
-                ))}
-              </div>
+              <SubtypeManager />
             </TabsContent>
 
             {/* Grid View Tab */}
