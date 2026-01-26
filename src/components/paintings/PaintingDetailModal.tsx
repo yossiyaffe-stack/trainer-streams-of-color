@@ -81,7 +81,7 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
   const [analyzing, setAnalyzing] = useState(false);
   const [showAnalysisOptions, setShowAnalysisOptions] = useState(false);
   
-  // Editable fields
+  // Editable fields - basic
   const [editedTitle, setEditedTitle] = useState(initialPainting.title || '');
   const [editedNotes, setEditedNotes] = useState(initialPainting.notes || '');
   const [hasEdits, setHasEdits] = useState(false);
@@ -89,6 +89,20 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
   const [isPalettePainting, setIsPalettePainting] = useState(
     initialPainting.status === 'palette' || initialPainting.tags?.includes('Palette Painting')
   );
+  
+  // Editable analysis fields - for Nechama's insights
+  const [editedMoodPrimary, setEditedMoodPrimary] = useState(initialPainting.mood_primary || '');
+  const [editedMoodSecondary, setEditedMoodSecondary] = useState(initialPainting.mood_secondary?.join(', ') || '');
+  const [editedFabrics, setEditedFabrics] = useState(initialPainting.fabrics?.join(', ') || '');
+  const [editedSilhouette, setEditedSilhouette] = useState(initialPainting.silhouette || '');
+  const [editedNeckline, setEditedNeckline] = useState(initialPainting.neckline || '');
+  const [editedSleeves, setEditedSleeves] = useState(initialPainting.sleeves || '');
+  const [editedJewelry, setEditedJewelry] = useState(initialPainting.jewelry_types?.join(', ') || '');
+  const [editedColorMood, setEditedColorMood] = useState(initialPainting.color_mood || '');
+  const [editedBestFor, setEditedBestFor] = useState(initialPainting.best_for?.join(', ') || '');
+  const [editedTalkingPoints, setEditedTalkingPoints] = useState(initialPainting.client_talking_points?.join('\n') || '');
+  const [editedArtist, setEditedArtist] = useState(initialPainting.artist || '');
+  const [editedEra, setEditedEra] = useState(initialPainting.era || '');
   
   const analysis = painting.ai_analysis || {};
   const colors = analysis.colors || {};
@@ -98,12 +112,35 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
 
   const isNotAnalyzed = painting.status === 'pending' || !painting.ai_analysis || Object.keys(painting.ai_analysis).length === 0;
 
-  // Track edits
+  // Track edits - check all editable fields
   useEffect(() => {
     const titleChanged = editedTitle !== (painting.title || '');
     const notesChanged = editedNotes !== (painting.notes || '');
-    setHasEdits(titleChanged || notesChanged);
-  }, [editedTitle, editedNotes, painting.title, painting.notes]);
+    const artistChanged = editedArtist !== (painting.artist || '');
+    const eraChanged = editedEra !== (painting.era || '');
+    const moodPrimaryChanged = editedMoodPrimary !== (painting.mood_primary || '');
+    const moodSecondaryChanged = editedMoodSecondary !== (painting.mood_secondary?.join(', ') || '');
+    const fabricsChanged = editedFabrics !== (painting.fabrics?.join(', ') || '');
+    const silhouetteChanged = editedSilhouette !== (painting.silhouette || '');
+    const necklineChanged = editedNeckline !== (painting.neckline || '');
+    const sleevesChanged = editedSleeves !== (painting.sleeves || '');
+    const jewelryChanged = editedJewelry !== (painting.jewelry_types?.join(', ') || '');
+    const colorMoodChanged = editedColorMood !== (painting.color_mood || '');
+    const bestForChanged = editedBestFor !== (painting.best_for?.join(', ') || '');
+    const talkingPointsChanged = editedTalkingPoints !== (painting.client_talking_points?.join('\n') || '');
+    
+    setHasEdits(
+      titleChanged || notesChanged || artistChanged || eraChanged || 
+      moodPrimaryChanged || moodSecondaryChanged || fabricsChanged || 
+      silhouetteChanged || necklineChanged || sleevesChanged || 
+      jewelryChanged || colorMoodChanged || bestForChanged || talkingPointsChanged
+    );
+  }, [
+    editedTitle, editedNotes, editedArtist, editedEra, editedMoodPrimary, 
+    editedMoodSecondary, editedFabrics, editedSilhouette, editedNeckline, 
+    editedSleeves, editedJewelry, editedColorMood, editedBestFor, editedTalkingPoints,
+    painting
+  ]);
 
   // Fetch subtypes on mount
   useEffect(() => {
@@ -314,12 +351,30 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
   const saveEdits = async () => {
     setSavingEdits(true);
     try {
-      // Only update title and notes - don't touch tags (let trigger regenerate)
+      // Parse comma-separated fields back to arrays
+      const parseFabrics = editedFabrics.trim() ? editedFabrics.split(',').map(s => s.trim()).filter(Boolean) : null;
+      const parseMoodSecondary = editedMoodSecondary.trim() ? editedMoodSecondary.split(',').map(s => s.trim()).filter(Boolean) : null;
+      const parseJewelry = editedJewelry.trim() ? editedJewelry.split(',').map(s => s.trim()).filter(Boolean) : null;
+      const parseBestFor = editedBestFor.trim() ? editedBestFor.split(',').map(s => s.trim()).filter(Boolean) : null;
+      const parseTalkingPoints = editedTalkingPoints.trim() ? editedTalkingPoints.split('\n').map(s => s.trim()).filter(Boolean) : null;
+
       const { error } = await supabase
         .from('paintings')
         .update({
           title: editedTitle.trim() || null,
           notes: editedNotes.trim() || null,
+          artist: editedArtist.trim() || null,
+          era: editedEra.trim() || null,
+          mood_primary: editedMoodPrimary.trim() || null,
+          mood_secondary: parseMoodSecondary,
+          fabrics: parseFabrics,
+          silhouette: editedSilhouette.trim() || null,
+          neckline: editedNeckline.trim() || null,
+          sleeves: editedSleeves.trim() || null,
+          jewelry_types: parseJewelry,
+          color_mood: editedColorMood.trim() || null,
+          best_for: parseBestFor,
+          client_talking_points: parseTalkingPoints,
           status: isPalettePainting ? 'palette' : painting.status,
         })
         .eq('id', painting.id);
@@ -330,6 +385,18 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
         ...prev,
         title: editedTitle.trim() || null,
         notes: editedNotes.trim() || null,
+        artist: editedArtist.trim() || null,
+        era: editedEra.trim() || null,
+        mood_primary: editedMoodPrimary.trim() || null,
+        mood_secondary: parseMoodSecondary,
+        fabrics: parseFabrics,
+        silhouette: editedSilhouette.trim() || null,
+        neckline: editedNeckline.trim() || null,
+        sleeves: editedSleeves.trim() || null,
+        jewelry_types: parseJewelry,
+        color_mood: editedColorMood.trim() || null,
+        best_for: parseBestFor,
+        client_talking_points: parseTalkingPoints,
         status: isPalettePainting ? 'palette' : prev.status,
       }));
 
@@ -434,7 +501,7 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
           <div className="p-6 space-y-6">
             {/* Header with Editable Title */}
             <div className="flex items-start justify-between">
-              <div className="flex-1 mr-4">
+              <div className="flex-1 mr-4 space-y-2">
                 {(painting.suggested_season || selectedSubtypeData) && (
                   <Badge className={SEASON_COLORS[selectedSubtypeData?.season || painting.suggested_season || ''] || 'bg-muted'}>
                     {SEASON_EMOJIS[selectedSubtypeData?.season || painting.suggested_season || ''] || ''} {selectedSubtypeData?.season || painting.suggested_season}
@@ -444,14 +511,20 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
                   value={editedTitle}
                   onChange={(e) => setEditedTitle(e.target.value)}
                   placeholder="Enter painting title..."
-                  className="font-serif text-2xl font-bold mt-2 border-transparent hover:border-border focus:border-primary bg-transparent h-auto p-0"
+                  className="font-serif text-2xl font-bold border-transparent hover:border-border focus:border-primary bg-transparent h-auto p-0"
                 />
-                {painting.artist && (
-                  <p className="text-muted-foreground">{painting.artist}</p>
-                )}
-                {painting.era && (
-                  <p className="text-sm text-muted-foreground">{painting.era}</p>
-                )}
+                <Input
+                  value={editedArtist}
+                  onChange={(e) => setEditedArtist(e.target.value)}
+                  placeholder="Artist name..."
+                  className="text-muted-foreground border-transparent hover:border-border focus:border-primary bg-transparent h-auto p-0"
+                />
+                <Input
+                  value={editedEra}
+                  onChange={(e) => setEditedEra(e.target.value)}
+                  placeholder="Era / Period..."
+                  className="text-sm text-muted-foreground border-transparent hover:border-border focus:border-primary bg-transparent h-auto p-0"
+                />
               </div>
               <Button variant="ghost" size="icon" onClick={onClose}>
                 <X className="w-5 h-5" />
@@ -606,28 +679,52 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
               </div>
             )}
 
-            {/* Mood */}
-            {painting.mood_primary && (
-              <div>
-                <h4 className="font-medium mb-2">Mood</h4>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="secondary">{painting.mood_primary}</Badge>
-                  {painting.mood_secondary?.map((m) => (
-                    <Badge key={m} variant="outline">{m}</Badge>
-                  ))}
+            {/* Mood - Editable */}
+            <div className="space-y-2">
+              <h4 className="font-medium flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                Mood & Color
+              </h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground">Primary Mood</label>
+                  <Input
+                    value={editedMoodPrimary}
+                    onChange={(e) => setEditedMoodPrimary(e.target.value)}
+                    placeholder="e.g., Romantic, Regal, Serene"
+                    className="bg-muted/30"
+                  />
                 </div>
-                {mood.feeling && (
-                  <p className="text-sm text-muted-foreground mt-2 italic">"{mood.feeling}"</p>
-                )}
+                <div>
+                  <label className="text-xs text-muted-foreground">Secondary Moods (comma-separated)</label>
+                  <Input
+                    value={editedMoodSecondary}
+                    onChange={(e) => setEditedMoodSecondary(e.target.value)}
+                    placeholder="e.g., Elegant, Dreamy, Opulent"
+                    className="bg-muted/30"
+                  />
+                </div>
               </div>
-            )}
+              <div>
+                <label className="text-xs text-muted-foreground">Color Mood</label>
+                <Input
+                  value={editedColorMood}
+                  onChange={(e) => setEditedColorMood(e.target.value)}
+                  placeholder="e.g., Rich/Warm, Cool/Muted, Bright/Vibrant"
+                  className="bg-muted/30"
+                />
+              </div>
+              {mood.feeling && (
+                <p className="text-sm text-muted-foreground italic">AI insight: "{mood.feeling}"</p>
+              )}
+            </div>
 
-            {/* Colors */}
+            {/* Colors - Read Only (from AI) */}
             {(colors.dominant?.length || colors.accent?.length) && (
               <div>
                 <h4 className="font-medium mb-2 flex items-center gap-2">
                   <Palette className="w-4 h-4 text-primary" />
-                  Colors
+                  Detected Colors
                 </h4>
                 <div className="space-y-2">
                   {colors.dominant && (
@@ -652,98 +749,99 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
               </div>
             )}
 
-            {/* Fabrics */}
-            {painting.fabrics && painting.fabrics.length > 0 && (
-              <div>
-                <h4 className="font-medium mb-2 flex items-center gap-2">
-                  <Shirt className="w-4 h-4 text-primary" />
-                  Fabrics
-                </h4>
-                <p className="text-muted-foreground">
-                  {painting.fabrics.join(' • ')}
+            {/* Fabrics - Editable */}
+            <div>
+              <h4 className="font-medium mb-2 flex items-center gap-2">
+                <Shirt className="w-4 h-4 text-primary" />
+                Fabrics
+              </h4>
+              <Input
+                value={editedFabrics}
+                onChange={(e) => setEditedFabrics(e.target.value)}
+                placeholder="e.g., Silk, Velvet, Chiffon, Brocade (comma-separated)"
+                className="bg-muted/30"
+              />
+            </div>
+
+            {/* Style Details - Editable */}
+            <div>
+              <h4 className="font-medium mb-2 flex items-center gap-2">
+                <Crown className="w-4 h-4 text-primary" />
+                Style Details
+              </h4>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground">Silhouette</label>
+                  <Input
+                    value={editedSilhouette}
+                    onChange={(e) => setEditedSilhouette(e.target.value)}
+                    placeholder="e.g., A-Line, Column"
+                    className="bg-muted/30"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Neckline</label>
+                  <Input
+                    value={editedNeckline}
+                    onChange={(e) => setEditedNeckline(e.target.value)}
+                    placeholder="e.g., Portrait, Boat"
+                    className="bg-muted/30"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Sleeves</label>
+                  <Input
+                    value={editedSleeves}
+                    onChange={(e) => setEditedSleeves(e.target.value)}
+                    placeholder="e.g., Bishop, Cap"
+                    className="bg-muted/30"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Jewelry - Editable */}
+            <div>
+              <h4 className="font-medium mb-2 flex items-center gap-2">
+                <Gem className="w-4 h-4 text-primary" />
+                Jewelry
+              </h4>
+              <Input
+                value={editedJewelry}
+                onChange={(e) => setEditedJewelry(e.target.value)}
+                placeholder="e.g., Pearl Necklace, Gold Earrings, Brooch (comma-separated)"
+                className="bg-muted/30"
+              />
+              {jewelry.metals && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  AI detected metals: {jewelry.metals.join(', ')}
                 </p>
-              </div>
-            )}
+              )}
+            </div>
 
-            {/* Silhouette & Details */}
-            {(painting.silhouette || painting.neckline || painting.sleeves) && (
-              <div>
-                <h4 className="font-medium mb-2 flex items-center gap-2">
-                  <Crown className="w-4 h-4 text-primary" />
-                  Style Details
-                </h4>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  {painting.silhouette && (
-                    <div>
-                      <span className="text-muted-foreground">Silhouette:</span>{' '}
-                      {painting.silhouette}
-                    </div>
-                  )}
-                  {painting.neckline && (
-                    <div>
-                      <span className="text-muted-foreground">Neckline:</span>{' '}
-                      {painting.neckline}
-                    </div>
-                  )}
-                  {painting.sleeves && (
-                    <div>
-                      <span className="text-muted-foreground">Sleeves:</span>{' '}
-                      {painting.sleeves}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+            {/* Best For - Editable */}
+            <div>
+              <h4 className="font-medium mb-2">Best For</h4>
+              <Input
+                value={editedBestFor}
+                onChange={(e) => setEditedBestFor(e.target.value)}
+                placeholder="e.g., Soft glam looks, Romantic events (comma-separated)"
+                className="bg-muted/30"
+              />
+            </div>
 
-            {/* Jewelry */}
-            {(painting.jewelry_types?.length || jewelry.metals?.length) && (
-              <div>
-                <h4 className="font-medium mb-2 flex items-center gap-2">
-                  <Gem className="w-4 h-4 text-primary" />
-                  Jewelry
-                </h4>
-                <div className="space-y-1 text-sm">
-                  {painting.jewelry_types && painting.jewelry_types.length > 0 && (
-                    <p>{painting.jewelry_types.join(', ')}</p>
-                  )}
-                  {jewelry.metals && (
-                    <p className="text-muted-foreground">
-                      Metals: {jewelry.metals.join(', ')}
-                    </p>
-                  )}
-                  {jewelry.style && (
-                    <p className="text-muted-foreground">Style: {jewelry.style}</p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Best For */}
-            {painting.best_for && painting.best_for.length > 0 && (
-              <div>
-                <h4 className="font-medium mb-2">Best For</h4>
-                <div className="flex flex-wrap gap-2">
-                  {painting.best_for.map((use) => (
-                    <Badge key={use} variant="outline">{use}</Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Client Talking Points */}
-            {painting.client_talking_points && painting.client_talking_points.length > 0 && (
-              <div className="bg-muted/50 rounded-lg p-4">
-                <h4 className="font-medium mb-2">💬 Client Talking Points</h4>
-                <ul className="space-y-2 text-sm">
-                  {painting.client_talking_points.map((point, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <span className="text-primary">•</span>
-                      {point}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            {/* Client Talking Points - Editable */}
+            <div className="bg-muted/30 rounded-lg p-4">
+              <h4 className="font-medium mb-2">💬 Client Talking Points</h4>
+              <Textarea
+                value={editedTalkingPoints}
+                onChange={(e) => setEditedTalkingPoints(e.target.value)}
+                placeholder="Add talking points for client consultations (one per line)..."
+                rows={4}
+                className="bg-background"
+              />
+              <p className="text-xs text-muted-foreground mt-1">One point per line</p>
+            </div>
 
             {/* Season Reasoning */}
             {seasons.reasoning && (
