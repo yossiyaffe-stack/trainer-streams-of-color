@@ -4,6 +4,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { 
   FacesFilterToolbar, 
@@ -18,7 +29,8 @@ import {
   ChevronLeft, 
   ChevronRight,
   Sparkles,
-  Loader2
+  Loader2,
+  Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -259,6 +271,43 @@ export function FacesGalleryTab() {
     setSelectedIds(new Set());
   };
 
+  const deleteSelected = async () => {
+    const idsToDelete = Array.from(selectedIds);
+    
+    try {
+      // First delete color_labels (child records)
+      const { error: labelError } = await supabase
+        .from('color_labels')
+        .delete()
+        .in('face_image_id', idsToDelete);
+
+      if (labelError) throw labelError;
+
+      // Then delete face_images
+      const { error: faceError } = await supabase
+        .from('face_images')
+        .delete()
+        .in('id', idsToDelete);
+
+      if (faceError) throw faceError;
+
+      toast({
+        title: 'Deleted',
+        description: `Removed ${idsToDelete.length} face(s)`,
+      });
+
+      setSelectedIds(new Set());
+      fetchFaces();
+    } catch (err) {
+      console.error('Delete error:', err);
+      toast({
+        title: 'Delete Failed',
+        description: err instanceof Error ? err.message : 'Could not delete faces',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const analyzeAllUnlabeled = async () => {
     const unlabeled = filteredFaces.filter(f => 
       !f.color_label?.label_status || f.color_label.label_status === 'unlabeled'
@@ -332,15 +381,43 @@ export function FacesGalleryTab() {
         </Button>
         
         {selectedIds.size > 0 && (
-          <Button
-            variant="outline"
-            onClick={analyzeSelected}
-            disabled={analyzingIds.size > 0}
-            className="gap-2"
-          >
-            <Sparkles className="w-4 h-4" />
-            Analyze Selected ({selectedIds.size})
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              onClick={analyzeSelected}
+              disabled={analyzingIds.size > 0}
+              className="gap-2"
+            >
+              <Sparkles className="w-4 h-4" />
+              Analyze Selected ({selectedIds.size})
+            </Button>
+            
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  className="gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete Selected ({selectedIds.size})
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete {selectedIds.size} face(s)?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently remove the selected faces and their analysis data. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={deleteSelected} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
         )}
         
         {analyzingIds.size > 0 && (
