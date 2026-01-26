@@ -2,95 +2,152 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+@import "@fontsource/playfair-display/400.css";
+@import "@fontsource/playfair-display/500.css";
+@import "@fontsource/playfair-display/600.css";
+@import "@fontsource/playfair-display/700.css";
+@import "@fontsource/inter/300.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+
+/* ============================================================================
+   STREAMS OF COLOR - DESIGN SYSTEM
+   Luxury editorial aesthetic with seasonal color palettes
+   ============================================================================ */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Core neutrals - warm cream base */
+    --background: 40 33% 98%;
+    --foreground: 30 15% 15%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 40 30% 99%;
+    --card-foreground: 30 15% 15%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 40 30% 99%;
+    --popover-foreground: 30 15% 15%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary - rich burgundy wine */
+    --primary: 350 45% 35%;
+    --primary-foreground: 40 30% 98%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary - sage green */
+    --secondary: 145 20% 92%;
+    --secondary-foreground: 145 30% 25%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Muted - warm stone */
+    --muted: 35 20% 93%;
+    --muted-foreground: 30 10% 45%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Accent - antique gold */
+    --accent: 42 65% 55%;
+    --accent-foreground: 30 15% 15%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 35 25% 88%;
+    --input: 35 25% 88%;
+    --ring: 350 45% 35%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
+    /* =========== SEASONAL COLORS =========== */
+    
+    /* Spring - fresh, clear, warm light */
+    --spring-primary: 45 85% 65%;
+    --spring-secondary: 145 55% 55%;
+    --spring-accent: 25 90% 65%;
+    --spring-muted: 45 40% 92%;
+    
+    /* Summer - soft, muted, cool light */
+    --summer-primary: 220 45% 65%;
+    --summer-secondary: 320 35% 70%;
+    --summer-accent: 200 50% 70%;
+    --summer-muted: 220 30% 94%;
+    
+    /* Autumn - warm, rich, deep */
+    --autumn-primary: 25 70% 45%;
+    --autumn-secondary: 145 50% 35%;
+    --autumn-accent: 35 80% 50%;
+    --autumn-muted: 30 35% 92%;
+    
+    /* Winter - clear, cool, high contrast */
+    --winter-primary: 260 50% 40%;
+    --winter-secondary: 200 70% 45%;
+    --winter-accent: 340 70% 50%;
+    --winter-muted: 260 20% 95%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
+    /* =========== CUSTOM TOKENS =========== */
+    
+    /* Surfaces */
+    --surface-cream: 40 33% 97%;
+    --surface-warm: 35 30% 95%;
+    --surface-elevated: 0 0% 100%;
+    
+    /* Text */
+    --text-primary: 30 15% 15%;
+    --text-secondary: 30 10% 40%;
+    --text-muted: 30 8% 55%;
+    
+    /* Borders & Shadows */
+    --border-subtle: 35 20% 90%;
+    --border-warm: 35 30% 85%;
+    --shadow-color: 30 30% 30%;
+    
+    /* Gradient stops */
+    --gradient-warm-start: 40 60% 96%;
+    --gradient-warm-end: 35 40% 93%;
+    
+    /* Sidebar */
+    --sidebar-background: 35 25% 97%;
+    --sidebar-foreground: 30 15% 25%;
+    --sidebar-primary: 350 45% 35%;
     --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 35 25% 92%;
+    --sidebar-accent-foreground: 30 15% 25%;
+    --sidebar-border: 35 20% 88%;
+    --sidebar-ring: 350 45% 35%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 30 15% 8%;
+    --foreground: 40 25% 95%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 30 15% 10%;
+    --card-foreground: 40 25% 95%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 30 15% 10%;
+    --popover-foreground: 40 25% 95%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 350 50% 55%;
+    --primary-foreground: 30 15% 8%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 145 20% 18%;
+    --secondary-foreground: 145 30% 85%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 30 15% 18%;
+    --muted-foreground: 30 15% 65%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 42 70% 50%;
+    --accent-foreground: 30 15% 8%;
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --border: 30 15% 20%;
+    --input: 30 15% 20%;
+    --ring: 350 50% 55%;
+
+    --sidebar-background: 30 15% 10%;
+    --sidebar-foreground: 40 25% 90%;
+    --sidebar-primary: 350 50% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 30 15% 15%;
+    --sidebar-accent-foreground: 40 25% 90%;
+    --sidebar-border: 30 15% 20%;
+    --sidebar-ring: 350 50% 55%;
   }
 }
 
@@ -100,6 +157,123 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
   }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Playfair Display', Georgia, serif;
+  }
+}
+
+@layer components {
+  /* Season badges */
+  .badge-spring {
+    @apply bg-[hsl(var(--spring-muted))] text-[hsl(45,70%,30%)] border border-[hsl(45,50%,70%)];
+  }
+  
+  .badge-summer {
+    @apply bg-[hsl(var(--summer-muted))] text-[hsl(220,50%,35%)] border border-[hsl(220,40%,75%)];
+  }
+  
+  .badge-autumn {
+    @apply bg-[hsl(var(--autumn-muted))] text-[hsl(25,60%,30%)] border border-[hsl(25,50%,70%)];
+  }
+  
+  .badge-winter {
+    @apply bg-[hsl(var(--winter-muted))] text-[hsl(260,45%,30%)] border border-[hsl(260,35%,75%)];
+  }
+  
+  /* Season cards */
+  .season-card-spring {
+    @apply bg-gradient-to-br from-[hsl(45,60%,96%)] to-[hsl(145,40%,94%)];
+  }
+  
+  .season-card-summer {
+    @apply bg-gradient-to-br from-[hsl(220,40%,96%)] to-[hsl(320,30%,95%)];
+  }
+  
+  .season-card-autumn {
+    @apply bg-gradient-to-br from-[hsl(30,40%,95%)] to-[hsl(25,50%,92%)];
+  }
+  
+  .season-card-winter {
+    @apply bg-gradient-to-br from-[hsl(260,30%,96%)] to-[hsl(200,40%,95%)];
+  }
+
+  /* Elegant shadows */
+  .shadow-elegant {
+    box-shadow: 
+      0 4px 6px -1px hsl(var(--shadow-color) / 0.05),
+      0 10px 15px -3px hsl(var(--shadow-color) / 0.08);
+  }
+  
+  .shadow-elevated {
+    box-shadow: 
+      0 10px 25px -5px hsl(var(--shadow-color) / 0.08),
+      0 20px 40px -10px hsl(var(--shadow-color) / 0.12);
+  }
+
+  /* Gradient text */
+  .text-gradient-warm {
+    @apply bg-gradient-to-r from-[hsl(350,45%,35%)] via-[hsl(25,70%,45%)] to-[hsl(42,65%,55%)] bg-clip-text text-transparent;
+  }
+  
+  .text-gradient-seasons {
+    @apply bg-gradient-to-r from-[hsl(45,85%,55%)] via-[hsl(145,50%,45%)] via-[hsl(25,70%,45%)] to-[hsl(260,50%,40%)] bg-clip-text text-transparent;
+  }
+
+  /* Hero button */
+  .btn-hero {
+    @apply bg-gradient-to-r from-primary to-[hsl(25,60%,40%)] text-primary-foreground 
+           px-8 py-4 rounded-full font-medium text-lg
+           shadow-elegant hover:shadow-elevated 
+           transition-all duration-300 hover:scale-[1.02];
+  }
+  
+  .btn-hero-outline {
+    @apply border-2 border-primary text-primary bg-transparent
+           px-8 py-4 rounded-full font-medium text-lg
+           hover:bg-primary hover:text-primary-foreground
+           transition-all duration-300;
+  }
+}
+
+@layer utilities {
+  /* Smooth reveal animations */
+  .animate-fade-up {
+    animation: fadeUp 0.6s ease-out forwards;
+  }
+  
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+  }
+  
+  @keyframes fadeUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  /* Stagger children animations */
+  .stagger-children > * {
+    opacity: 0;
+    animation: fadeUp 0.5s ease-out forwards;
+  }
+  
+  .stagger-children > *:nth-child(1) { animation-delay: 0.1s; }
+  .stagger-children > *:nth-child(2) { animation-delay: 0.2s; }
+  .stagger-children > *:nth-child(3) { animation-delay: 0.3s; }
+  .stagger-children > *:nth-child(4) { animation-delay: 0.4s; }
+  .stagger-children > *:nth-child(5) { animation-delay: 0.5s; }
 }
