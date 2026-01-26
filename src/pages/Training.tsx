@@ -154,9 +154,12 @@ export default function Training() {
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="bg-muted/50 p-1 h-auto flex-wrap">
-              <TabsTrigger value="upload" className="gap-2 data-[state=active]:bg-background">
-                <Upload className="w-4 h-4" />
-                Upload
+              <TabsTrigger 
+                value="upload" 
+                className="gap-2 px-6 py-3 text-base font-semibold bg-primary text-primary-foreground hover:bg-primary/90 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                <Upload className="w-5 h-5" />
+                Upload Photos
               </TabsTrigger>
               <TabsTrigger value="gallery" className="gap-2 data-[state=active]:bg-background">
                 <Images className="w-4 h-4" />
