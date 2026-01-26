@@ -313,19 +313,12 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
   const saveEdits = async () => {
     setSavingEdits(true);
     try {
-      const currentTags = painting.tags || [];
-      let updatedTags = currentTags.filter(t => t !== 'Palette Painting');
-      
-      if (isPalettePainting) {
-        updatedTags = [...updatedTags, 'Palette Painting'];
-      }
-
+      // Only update title and notes - don't touch tags (let trigger regenerate)
       const { error } = await supabase
         .from('paintings')
         .update({
           title: editedTitle.trim() || null,
           notes: editedNotes.trim() || null,
-          tags: updatedTags,
           status: isPalettePainting ? 'palette' : painting.status,
         })
         .eq('id', painting.id);
@@ -336,7 +329,6 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
         ...prev,
         title: editedTitle.trim() || null,
         notes: editedNotes.trim() || null,
-        tags: updatedTags,
         status: isPalettePainting ? 'palette' : prev.status,
       }));
 
@@ -363,15 +355,12 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
     setIsPalettePainting(true);
     setSavingEdits(true);
     try {
-      const currentTags = painting.tags || [];
-      const updatedTags = [...currentTags.filter(t => t !== 'Palette Painting'), 'Palette Painting'];
-
+      // Only update title, notes, and status - don't touch tags (let trigger regenerate)
       const { error } = await supabase
         .from('paintings')
         .update({
           title: editedTitle.trim() || painting.title,
           notes: editedNotes.trim() || painting.notes,
-          tags: updatedTags,
           status: 'palette',
         })
         .eq('id', painting.id);
@@ -382,7 +371,6 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
         ...prev,
         title: editedTitle.trim() || prev.title,
         notes: editedNotes.trim() || prev.notes,
-        tags: updatedTags,
         status: 'palette',
       }));
 
