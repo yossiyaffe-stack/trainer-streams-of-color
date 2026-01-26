@@ -71,6 +71,42 @@ const SEASON_SEARCHES = [
   { label: 'Winter', query: 'winter deep colors velvet portrait woman', emoji: '❄️' },
 ];
 
+// Nechama's Favorite Artists (from docs/fetch_paintings_reference.py)
+const FAVORITE_ARTISTS = [
+  { name: 'Claude Monet', query: 'monet', subtypes: 'Ballerina Summer, Water Lily Summer, Chinoiserie Summer' },
+  { name: 'Johannes Vermeer', query: 'vermeer', subtypes: 'Summer Rose, Porcelain Winter, Renaissance Autumn' },
+  { name: 'Leonardo da Vinci', query: 'da-vinci leonardo', subtypes: 'Sunlit Autumn, Tapestry Winter, Mediterranean Winter' },
+  { name: 'Amedeo Modigliani', query: 'modigliani', subtypes: 'Mellow Autumn, Tapestry Winter, Burnished Autumn' },
+  { name: 'Jean-Baptiste-Camille Corot', query: 'corot', subtypes: 'Burnished Autumn, Mellow Autumn, Tapestry Autumn' },
+  { name: 'Mary Cassatt', query: 'cassatt', subtypes: 'French Spring, Ballerina Summer' },
+  { name: 'Pierre-Auguste Renoir', query: 'renoir', subtypes: 'French Spring' },
+  { name: 'John Singer Sargent', query: 'sargent', subtypes: 'Cloisonne Autumn, Renaissance Autumn, Cameo Summer' },
+  { name: 'Dante Gabriel Rossetti', query: 'rossetti', subtypes: 'Water Lily Summer, Cloisonne Autumn' },
+  { name: 'Edgar Degas', query: 'degas', subtypes: 'Degas Summer, Cameo Summer' },
+  { name: 'Henri Matisse', query: 'matisse', subtypes: 'Crystal Winter, Water Lily Summer' },
+  { name: 'Pablo Picasso', query: 'picasso', subtypes: 'Crystal Winter' },
+  { name: 'Vincent van Gogh', query: 'van-gogh', subtypes: 'Sunlit Autumn' },
+  { name: 'Paul Gauguin', query: 'gauguin', subtypes: 'Burnished Autumn, Multi-Colored Autumn' },
+  { name: 'Édouard Manet', query: 'manet', subtypes: 'Chinoiserie Summer, Cameo Summer' },
+  { name: 'El Greco', query: 'el-greco', subtypes: 'Mediterranean Winter' },
+  { name: 'Ingres', query: 'ingres', subtypes: 'Cameo Summer' },
+  { name: 'Odilon Redon', query: 'odilon-redon', subtypes: 'French Spring' },
+];
+
+// Additional master artists
+const MORE_ARTISTS = [
+  { name: 'Alphonse Mucha', query: 'mucha', movement: 'Art Nouveau' },
+  { name: 'Caravaggio', query: 'caravaggio', movement: 'Baroque' },
+  { name: 'Gustav Klimt', query: 'klimt', movement: 'Art Nouveau' },
+  { name: 'Raphael', query: 'raphael', movement: 'High Renaissance' },
+  { name: 'Rembrandt', query: 'rembrandt', movement: 'Dutch Golden Age' },
+  { name: 'Botticelli', query: 'botticelli', movement: 'Early Renaissance' },
+  { name: 'Titian', query: 'titian', movement: 'Venetian Renaissance' },
+  { name: 'Waterhouse', query: 'waterhouse', movement: 'Pre-Raphaelite' },
+  { name: 'Alma-Tadema', query: 'alma-tadema', movement: 'Victorian Classicism' },
+  { name: 'Lord Leighton', query: 'leighton frederic', movement: 'Victorian Classicism' },
+];
+
 export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
   const [files, setFiles] = useState<UploadingFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -400,7 +436,7 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
               </div>
 
               {/* Quick Search Tags */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex flex-wrap gap-2">
                   {QUICK_SEARCHES.map(qs => (
                     <Badge
@@ -416,7 +452,7 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
                     </Badge>
                   ))}
                 </div>
-                <div className="flex gap-2 items-center">
+                <div className="flex gap-2 items-center flex-wrap">
                   <span className="text-xs text-muted-foreground">By Season:</span>
                   {SEASON_SEARCHES.map(s => (
                     <Badge
@@ -431,6 +467,51 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
                       {s.emoji} {s.label}
                     </Badge>
                   ))}
+                </div>
+                
+                {/* Favorite Artists */}
+                <div className="pt-2 border-t space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium">⭐ Favorite Artists</span>
+                    <span className="text-[10px] text-muted-foreground">(Nechama's references - hover for subtypes)</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {FAVORITE_ARTISTS.map(artist => (
+                      <Badge
+                        key={artist.query}
+                        variant="outline"
+                        className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors px-2 py-0.5 text-xs border-primary/40"
+                        onClick={() => {
+                          setMuseumQuery(artist.name);
+                          searchMuseums(artist.query);
+                        }}
+                        title={artist.subtypes}
+                      >
+                        {artist.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                {/* More Artists */}
+                <div className="space-y-2">
+                  <span className="text-xs text-muted-foreground">More masters:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {MORE_ARTISTS.map(artist => (
+                      <Badge
+                        key={artist.query}
+                        variant="outline"
+                        className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors px-2 py-0.5 text-xs"
+                        onClick={() => {
+                          setMuseumQuery(artist.name);
+                          searchMuseums(artist.query);
+                        }}
+                        title={artist.movement}
+                      >
+                        {artist.name}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               </div>
 
