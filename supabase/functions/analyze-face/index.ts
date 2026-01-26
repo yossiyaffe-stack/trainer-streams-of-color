@@ -144,6 +144,19 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Normalize enum values - AI sometimes returns underscores instead of hyphens
+    const normalizeEnumValue = (value: string | undefined): string | undefined => {
+      if (!value) return undefined;
+      return value.replace(/_/g, '-');
+    };
+
+    // Valid enum values for validation
+    const validContrastLevels = ['low', 'low-medium', 'medium', 'medium-high', 'high'];
+    const validDepthLevels = ['light', 'light-medium', 'medium', 'medium-deep', 'deep'];
+
+    const normalizedContrastLevel = normalizeEnumValue(analysis.contrast?.level);
+    const normalizedDepth = normalizeEnumValue(analysis.depth?.level);
+
     const colorLabelData = {
       face_image_id: faceImageId,
       skin_hex: analysis.skin?.hex,
@@ -155,10 +168,10 @@ serve(async (req) => {
       hair_hex: analysis.hair?.hex,
       hair_color_name: analysis.hair?.color_name,
       hair_details: analysis.hair?.is_natural !== undefined ? { is_natural: analysis.hair.is_natural } : null,
-      contrast_level: analysis.contrast?.level,
+      contrast_level: validContrastLevels.includes(normalizedContrastLevel || '') ? normalizedContrastLevel : null,
       contrast_value: analysis.contrast?.value,
       contrast_details: analysis.contrast?.details ? { description: analysis.contrast.details } : null,
-      depth: analysis.depth?.level,
+      depth: validDepthLevels.includes(normalizedDepth || '') ? normalizedDepth : null,
       depth_value: analysis.depth?.value,
       ai_predicted_subtype: analysis.predicted_subtype,
       confirmed_season: analysis.predicted_season,
