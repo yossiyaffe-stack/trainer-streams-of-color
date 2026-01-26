@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Palette, Shirt, Sparkles, Crown, Gem, Trash2, Loader2, Check, Tag, Wand2, Settings2 } from 'lucide-react';
+import { X, Palette, Shirt, Sparkles, Crown, Gem, Trash2, Loader2, Check, Tag, Wand2, Settings2, Save, FileText, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -77,6 +80,15 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
   const [analyzing, setAnalyzing] = useState(false);
   const [showAnalysisOptions, setShowAnalysisOptions] = useState(false);
   
+  // Editable fields
+  const [editedTitle, setEditedTitle] = useState(initialPainting.title || '');
+  const [editedNotes, setEditedNotes] = useState(initialPainting.notes || '');
+  const [hasEdits, setHasEdits] = useState(false);
+  const [savingEdits, setSavingEdits] = useState(false);
+  const [isPalettePainting, setIsPalettePainting] = useState(
+    initialPainting.status === 'palette' || initialPainting.tags?.includes('Palette Painting')
+  );
+  
   const analysis = painting.ai_analysis || {};
   const colors = analysis.colors || {};
   const mood = analysis.mood || {};
@@ -84,6 +96,13 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
   const seasons = analysis.suggested_seasons || {};
 
   const isNotAnalyzed = painting.status === 'pending' || !painting.ai_analysis || Object.keys(painting.ai_analysis).length === 0;
+
+  // Track edits
+  useEffect(() => {
+    const titleChanged = editedTitle !== (painting.title || '');
+    const notesChanged = editedNotes !== (painting.notes || '');
+    setHasEdits(titleChanged || notesChanged);
+  }, [editedTitle, editedNotes, painting.title, painting.notes]);
 
   // Fetch subtypes on mount
   useEffect(() => {
@@ -278,6 +297,102 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
       });
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const saveEdits = async () => {
+    setSavingEdits(true);
+    try {
+      const currentTags = painting.tags || [];
+      let updatedTags = currentTags.filter(t => t !== 'Palette Painting');
+      
+      if (isPalettePainting) {
+        updatedTags = [...updatedTags, 'Palette Painting'];
+      }
+
+      const { error } = await supabase
+        .from('paintings')
+        .update({
+          title: editedTitle.trim() || null,
+          notes: editedNotes.trim() || null,
+          tags: updatedTags,
+          status: isPalettePainting ? 'palette' : painting.status,
+        })
+        .eq('id', painting.id);
+
+      if (error) throw error;
+
+      setPainting(prev => ({
+        ...prev,
+        title: editedTitle.trim() || null,
+        notes: editedNotes.trim() || null,
+        tags: updatedTags,
+        status: isPalettePainting ? 'palette' : prev.status,
+      }));
+
+      setHasEdits(false);
+
+      toast({
+        title: isPalettePainting ? '🎨 Saved to Palette Paintings' : '✓ Changes Saved',
+        description: editedTitle || 'Painting updated successfully',
+      });
+
+      onUpdate?.();
+    } catch (err) {
+      toast({
+        title: 'Save Failed',
+        description: err instanceof Error ? err.message : 'Could not save changes',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingEdits(false);
+    }
+  };
+
+  const saveToPalette = async () => {
+    setIsPalettePainting(true);
+    setSavingEdits(true);
+    try {
+      const currentTags = painting.tags || [];
+      const updatedTags = [...currentTags.filter(t => t !== 'Palette Painting'), 'Palette Painting'];
+
+      const { error } = await supabase
+        .from('paintings')
+        .update({
+          title: editedTitle.trim() || painting.title,
+          notes: editedNotes.trim() || painting.notes,
+          tags: updatedTags,
+          status: 'palette',
+        })
+        .eq('id', painting.id);
+
+      if (error) throw error;
+
+      setPainting(prev => ({
+        ...prev,
+        title: editedTitle.trim() || prev.title,
+        notes: editedNotes.trim() || prev.notes,
+        tags: updatedTags,
+        status: 'palette',
+      }));
+
+      setHasEdits(false);
+
+      toast({
+        title: '🎨 Added to Palette Paintings!',
+        description: `"${editedTitle || painting.title}" is now a Palette Painting`,
+      });
+
+      onUpdate?.();
+    } catch (err) {
+      toast({
+        title: 'Save Failed',
+        description: err instanceof Error ? err.message : 'Could not save to palette',
+        variant: 'destructive',
+      });
+      setIsPalettePainting(false);
+    } finally {
+      setSavingEdits(false);
     }
   };
 
@@ -623,6 +738,79 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
                 <strong>Why {painting.suggested_season}?</strong> {seasons.reasoning}
               </div>
             )}
+
+            {/* Editable Description Section */}
+            <div className="border-t pt-4 space-y-4">
+              <h4 className="font-medium flex items-center gap-2">
+                <FileText className="w-4 h-4 text-primary" />
+                Edit Details
+              </h4>
+              
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="edit-title" className="text-sm text-muted-foreground">Title</Label>
+                  <Input
+                    id="edit-title"
+                    value={editedTitle}
+                    onChange={(e) => setEditedTitle(e.target.value)}
+                    placeholder="Enter painting title..."
+                    className="mt-1 bg-background border-muted-foreground/30"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="edit-notes" className="text-sm text-muted-foreground">Notes / Description</Label>
+                  <Textarea
+                    id="edit-notes"
+                    value={editedNotes}
+                    onChange={(e) => setEditedNotes(e.target.value)}
+                    placeholder="Add notes, observations, or description..."
+                    rows={3}
+                    className="mt-1 bg-background border-muted-foreground/30 resize-none"
+                  />
+                </div>
+
+                {/* Palette Painting Indicator */}
+                {isPalettePainting && (
+                  <div className="flex items-center gap-2 text-sm text-primary">
+                    <Star className="w-4 h-4 fill-primary" />
+                    <span className="font-medium">This is a Palette Painting</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Save Buttons */}
+              <div className="flex flex-col sm:flex-row gap-2">
+                {hasEdits && (
+                  <Button
+                    onClick={saveEdits}
+                    disabled={savingEdits}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    {savingEdits ? (
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
+                    ) : (
+                      <><Save className="w-4 h-4 mr-2" /> Save Changes</>
+                    )}
+                  </Button>
+                )}
+                
+                {!isPalettePainting && (
+                  <Button
+                    onClick={saveToPalette}
+                    disabled={savingEdits}
+                    className="flex-1 bg-primary hover:bg-primary/90"
+                  >
+                    {savingEdits ? (
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
+                    ) : (
+                      <><Star className="w-4 h-4 mr-2" /> 🎨 Save to Palette Paintings</>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
 
             {/* Delete Button */}
             <div className="pt-4 border-t">
