@@ -8,15 +8,12 @@ import {
   LayoutGrid, 
   Square, 
   Palette,
-  X,
-  EyeOff
+  X
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -83,7 +80,6 @@ export function UnifiedGallery() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
-  const [hideNudity, setHideNudity] = useState(true); // Default to hiding nudity
   const [selectedPainting, setSelectedPainting] = useState<Painting | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [currentPage, setCurrentPage] = useState(1);
@@ -126,8 +122,8 @@ export function UnifiedGallery() {
       if (sourceFilter === 'museum' && !isMuseumPainting(painting)) return false;
       if (sourceFilter === 'uploaded' && isMuseumPainting(painting)) return false;
 
-      // Nudity filter
-      if (hideNudity && hasNudityContent(painting)) return false;
+      // Always filter nudity content
+      if (hasNudityContent(painting)) return false;
 
       // Text search
       const matchesSearch = !searchQuery || 
@@ -141,7 +137,7 @@ export function UnifiedGallery() {
 
       return matchesSearch && matchesSeason;
     });
-  }, [paintings, searchQuery, selectedSeason, sourceFilter, hideNudity]);
+  }, [paintings, searchQuery, selectedSeason, sourceFilter]);
 
   // Pagination
   const totalPages = Math.ceil(filteredPaintings.length / itemsPerPage);
@@ -153,7 +149,7 @@ export function UnifiedGallery() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedSeason, sourceFilter, itemsPerPage, hideNudity]);
+  }, [searchQuery, selectedSeason, sourceFilter, itemsPerPage]);
 
   const getGridClasses = () => {
     switch (viewMode) {
@@ -222,18 +218,6 @@ export function UnifiedGallery() {
             </SelectContent>
           </Select>
           
-          {/* Hide Nudity Toggle */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50 border border-border">
-            <Checkbox 
-              id="hide-nudity" 
-              checked={hideNudity} 
-              onCheckedChange={(checked) => setHideNudity(checked === true)}
-            />
-            <Label htmlFor="hide-nudity" className="text-sm cursor-pointer flex items-center gap-1.5">
-              <EyeOff className="w-3.5 h-3.5" />
-              Hide Nudity
-            </Label>
-          </div>
           
           <Select value={selectedSeason || 'all'} onValueChange={(v) => setSelectedSeason(v === 'all' ? null : v)}>
             <SelectTrigger className="w-[140px]">
