@@ -65,11 +65,18 @@ Deno.serve(async (req) => {
       
       console.log('Fetching from HuggingFace:', apiUrl);
       
-      const response = await fetch(apiUrl, {
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
+      // Get HuggingFace token for authenticated access to gated datasets
+      const hfToken = Deno.env.get('HF_TOKEN');
+      
+      const headers: Record<string, string> = {
+        'Accept': 'application/json',
+      };
+      
+      if (hfToken) {
+        headers['Authorization'] = `Bearer ${hfToken}`;
+      }
+      
+      const response = await fetch(apiUrl, { headers });
 
       if (!response.ok) {
         const errorText = await response.text();
