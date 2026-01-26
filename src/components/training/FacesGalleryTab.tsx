@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import {
   SourceFilter, 
   ConfidenceFilter 
 } from './FacesFilterToolbar';
+import { FaceDetailModal } from './FaceDetailModal';
 import { 
   Users, 
   ChevronLeft, 
@@ -21,6 +22,29 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+interface ColorLabel {
+  confirmed_season: string | null;
+  confirmed_subtype: string | null;
+  label_status: string | null;
+  ai_confidence: number | null;
+  ai_predicted_subtype: string | null;
+  skin_hex?: string | null;
+  skin_tone_name?: string | null;
+  undertone?: string | null;
+  eye_hex?: string | null;
+  eye_color_name?: string | null;
+  eye_details?: { description?: string } | null;
+  hair_hex?: string | null;
+  hair_color_name?: string | null;
+  hair_details?: { is_natural?: boolean } | null;
+  contrast_level?: string | null;
+  contrast_value?: number | null;
+  depth?: string | null;
+  depth_value?: number | null;
+  ai_reasoning?: string | null;
+  ai_alternatives?: Array<{ subtype: string; confidence: number }> | null;
+}
+
 interface FaceImage {
   id: string;
   storage_path: string;
@@ -29,13 +53,7 @@ interface FaceImage {
   source_id: string | null;
   quality_score: number | null;
   created_at: string;
-  color_label?: {
-    confirmed_season: string | null;
-    confirmed_subtype: string | null;
-    label_status: string | null;
-    ai_confidence: number | null;
-    ai_predicted_subtype: string | null;
-  } | null;
+  color_label?: ColorLabel | null;
 }
 
 const SEASON_COLORS: Record<string, string> = {
@@ -62,6 +80,7 @@ export function FacesGalleryTab() {
   const [offset, setOffset] = useState(0);
   const [analyzingIds, setAnalyzingIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedFace, setSelectedFace] = useState<FaceImage | null>(null);
   const limit = 40;
 
   // Filter states
@@ -74,7 +93,7 @@ export function FacesGalleryTab() {
   const fetchFaces = async () => {
     setLoading(true);
     try {
-      // Build query for face_images with color_labels join
+      // Build query for face_images with FULL color_labels join
       let query = supabase
         .from('face_images')
         .select(`
@@ -90,7 +109,22 @@ export function FacesGalleryTab() {
             confirmed_subtype,
             label_status,
             ai_confidence,
-            ai_predicted_subtype
+            ai_predicted_subtype,
+            skin_hex,
+            skin_tone_name,
+            undertone,
+            eye_hex,
+            eye_color_name,
+            eye_details,
+            hair_hex,
+            hair_color_name,
+            hair_details,
+            contrast_level,
+            contrast_value,
+            depth,
+            depth_value,
+            ai_reasoning,
+            ai_alternatives
           )
         `, { count: 'exact' });
 
@@ -364,7 +398,7 @@ export function FacesGalleryTab() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.02 }}
-                onClick={(e) => toggleSelection(face.id, e)}
+                onClick={() => setSelectedFace(face)}
                 className={cn(
                   "group relative aspect-square rounded-lg overflow-hidden border-2 cursor-pointer transition-all",
                   isSelected ? "border-primary ring-2 ring-primary/30" :
@@ -419,11 +453,17 @@ export function FacesGalleryTab() {
                   )}
                 </div>
 
-                {/* Selection checkbox */}
-                <div className={cn(
-                  "absolute top-1 left-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
-                  isSelected ? "bg-primary border-primary text-primary-foreground" : "border-white/50 bg-black/30 opacity-0 group-hover:opacity-100"
-                )}>
+                {/* Selection checkbox - Shift+click to select */}
+                <div 
+                  className={cn(
+                    "absolute top-1 left-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
+                    isSelected ? "bg-primary border-primary text-primary-foreground" : "border-white/50 bg-black/30 opacity-0 group-hover:opacity-100"
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleSelection(face.id, e);
+                  }}
+                >
                   {isSelected && <span className="text-xs">✓</span>}
                 </div>
 
@@ -499,6 +539,27 @@ export function FacesGalleryTab() {
           </Button>
         </div>
       )}
+
+      {/* Face Detail Modal */}
+      <AnimatePresence>
+        {selectedFace && (
+          <FaceDetailModal
+            face={selectedFace}
+            onClose={() => setSelectedFace(null)}
+            onAnalyze={async (face) => {
+              await analyzeFace(face);
+              // Update the selected face with new data
+              const updated = faces.find(f => f.id === face.id);
+              if (updated) setSelectedFace(updated);
+            }}
+            onUpdate={() => {
+              fetchFaces();
+              setSelectedFace(null);
+            }}
+            isAnalyzing={analyzingIds.has(selectedFace.id)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
