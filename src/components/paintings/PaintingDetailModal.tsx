@@ -45,6 +45,8 @@ interface PaintingDetailModalProps {
   onClose: () => void;
   onDelete?: () => void;
   onUpdate?: () => void;
+  /** If true, requires confirmation before delete (two-step). If false, deletes immediately. */
+  isPaletteContext?: boolean;
 }
 
 const SEASON_COLORS: Record<string, string> = {
@@ -69,7 +71,7 @@ const SEASON_EMOJIS: Record<string, string> = {
   Winter: '❄️',
 };
 
-export function PaintingDetailModal({ painting: initialPainting, onClose, onDelete, onUpdate }: PaintingDetailModalProps) {
+export function PaintingDetailModal({ painting: initialPainting, onClose, onDelete, onUpdate, isPaletteContext = false }: PaintingDetailModalProps) {
   const { toast } = useToast();
   const [painting, setPainting] = useState(initialPainting);
   const [deleting, setDeleting] = useState(false);
@@ -808,38 +810,54 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
               </div>
             </div>
 
-            {/* Delete Button */}
+            {/* Delete Button - Two-step for palette, one-click for gallery */}
             <div className="pt-4 border-t">
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="w-full gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    disabled={deleting}
-                  >
-                    {deleting ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="w-4 h-4" />
-                    )}
-                    Delete Painting
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete this painting?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently remove "{painting.title || 'this painting'}" from your library. This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              {isPaletteContext ? (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="w-full gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      disabled={deleting}
+                    >
+                      {deleting ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                      Delete from Palette
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete this painting?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently remove "{painting.title || 'this painting'}" from your curated palette collection. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              ) : (
+                <Button
+                  variant="ghost"
+                  className="w-full gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  disabled={deleting}
+                  onClick={handleDelete}
+                >
+                  {deleting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                  Delete Painting
+                </Button>
+              )}
             </div>
           </div>
         </ScrollArea>
