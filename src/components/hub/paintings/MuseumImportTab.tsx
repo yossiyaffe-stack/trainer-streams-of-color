@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Search, 
@@ -31,6 +32,33 @@ interface MuseumArtwork {
   medium?: string;
   isPublicDomain: boolean;
 }
+
+const ARTISTS = [
+  { name: 'Alphonse Mucha', query: 'mucha', movement: 'Art Nouveau', years: '1860-1939' },
+  { name: 'Amedeo Modigliani', query: 'modigliani', movement: 'Expressionism', years: '1884-1920' },
+  { name: 'Caravaggio', query: 'caravaggio', movement: 'Baroque', years: '1571-1610' },
+  { name: 'Claude Monet', query: 'monet', movement: 'Impressionism', years: '1840-1926' },
+  { name: 'Dante Gabriel Rossetti', query: 'rossetti', movement: 'Pre-Raphaelite', years: '1828-1882' },
+  { name: 'Edgar Degas', query: 'degas', movement: 'Impressionism', years: '1834-1917' },
+  { name: 'Édouard Manet', query: 'manet', movement: 'Impressionism/Realism', years: '1832-1883' },
+  { name: 'El Greco', query: 'el-greco', movement: 'Mannerist', years: '1541-1614' },
+  { name: 'Gustav Klimt', query: 'klimt', movement: 'Art Nouveau/Symbolism', years: '1862-1918' },
+  { name: 'Henri Matisse', query: 'matisse', movement: 'Fauvism/Modernism', years: '1869-1954' },
+  { name: 'Ingres', query: 'ingres', movement: 'Neoclassical', years: '1780-1867' },
+  { name: 'Jean-Baptiste-Camille Corot', query: 'corot', movement: 'Realism/Barbizon', years: '1796-1875' },
+  { name: 'Johannes Vermeer', query: 'vermeer', movement: 'Dutch Golden Age', years: '1632-1675' },
+  { name: 'John Singer Sargent', query: 'sargent', movement: 'Realism/Impressionism', years: '1856-1925' },
+  { name: 'Leonardo da Vinci', query: 'da-vinci leonardo', movement: 'High Renaissance', years: '1452-1519' },
+  { name: 'Mary Cassatt', query: 'cassatt', movement: 'Impressionism', years: '1844-1926' },
+  { name: 'Odilon Redon', query: 'odilon-redon', movement: 'Symbolist', years: '1840-1916' },
+  { name: 'Pablo Picasso', query: 'picasso', movement: 'Cubism/Modernism', years: '1881-1973' },
+  { name: 'Paul Gauguin', query: 'gauguin', movement: 'Post-Impressionism', years: '1848-1903' },
+  { name: 'Pierre-Auguste Renoir', query: 'renoir', movement: 'Impressionism', years: '1841-1919' },
+  { name: 'Raphael', query: 'raphael', movement: 'High Renaissance', years: '1483-1520' },
+  { name: 'Rembrandt van Rijn', query: 'rembrandt', movement: 'Dutch Golden Age', years: '1606-1669' },
+  { name: 'Sandro Botticelli', query: 'botticelli', movement: 'Early Renaissance', years: '1445-1510' },
+  { name: 'Vincent van Gogh', query: 'van-gogh', movement: 'Post-Impressionism', years: '1853-1890' },
+];
 
 const QUICK_SEARCHES = [
   { label: '👗 Gowns & Dresses', query: 'gown dress woman' },
@@ -234,6 +262,53 @@ export function MuseumImportTab() {
               {s.emoji} {s.label}
             </Badge>
           ))}
+        </div>
+        
+        {/* Artist Selector */}
+        <div className="flex gap-3 items-center pt-2">
+          <span className="text-sm text-muted-foreground font-medium">🎨 By Artist:</span>
+          <Select
+            onValueChange={(value) => {
+              const artist = ARTISTS.find(a => a.query === value);
+              if (artist) {
+                setSearchQuery(artist.name);
+                searchMuseums(artist.query);
+              }
+            }}
+          >
+            <SelectTrigger className="w-[280px] bg-background">
+              <SelectValue placeholder="Select an artist..." />
+            </SelectTrigger>
+            <SelectContent className="max-h-[300px] bg-popover z-50">
+              {ARTISTS.map(artist => (
+                <SelectItem key={artist.query} value={artist.query}>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{artist.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {artist.movement} • {artist.years}
+                    </span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          {/* Quick Artist Badges */}
+          <div className="flex flex-wrap gap-1.5">
+            {ARTISTS.slice(0, 6).map(artist => (
+              <Badge
+                key={artist.query}
+                variant="outline"
+                className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors text-xs"
+                onClick={() => {
+                  setSearchQuery(artist.name);
+                  searchMuseums(artist.query);
+                }}
+              >
+                {artist.name.split(' ').pop()}
+              </Badge>
+            ))}
+          </div>
         </div>
       </div>
 
