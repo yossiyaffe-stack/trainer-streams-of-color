@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
-import { X } from 'lucide-react';
+import { X, Trash2, Check } from 'lucide-react';
 import { useHub } from '@/contexts/HubContext';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import { StatusDot } from '../StatusDot';
 import { cn } from '@/lib/utils';
 
@@ -111,29 +112,45 @@ export function PhotoGridTab() {
                         : 'border-destructive/50'
             )}
             >
-              {/* Selection checkbox */}
-              <div 
-                className="absolute top-1 left-1 z-10"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  togglePhotoSelection(photo.id);
-                }}
-              >
-                <Checkbox 
-                  checked={isPhotoSelected(photo.id)}
-                  className="bg-background/80"
-                />
+              {/* Season tag on left */}
+              {photo.aiPrediction && (
+                <Badge 
+                  className={cn(
+                    "absolute top-1 left-1 z-10 text-[10px] px-1.5 py-0.5 capitalize",
+                    photo.aiPrediction.season === 'spring' && 'bg-emerald-500/90 text-white',
+                    photo.aiPrediction.season === 'summer' && 'bg-sky-500/90 text-white',
+                    photo.aiPrediction.season === 'autumn' && 'bg-amber-600/90 text-white',
+                    photo.aiPrediction.season === 'winter' && 'bg-indigo-600/90 text-white',
+                  )}
+                >
+                  {photo.aiPrediction.season}
+                </Badge>
+              )}
+              
+              {/* Delete and Select buttons on right */}
+              <div className="absolute top-1 right-1 z-10 flex gap-1">
+                <button
+                  className="w-5 h-5 rounded-full bg-primary/80 hover:bg-primary flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    togglePhotoSelection(photo.id);
+                  }}
+                  title={isPhotoSelected(photo.id) ? "Deselect" : "Select"}
+                >
+                  <Check className={cn("w-3 h-3 text-white", isPhotoSelected(photo.id) && "opacity-100")} />
+                </button>
+                <button
+                  className="w-5 h-5 rounded-full bg-black/60 hover:bg-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deletePhotos([photo.id]);
+                  }}
+                  title="Delete"
+                >
+                  <Trash2 className="w-3 h-3 text-white" />
+                </button>
               </div>
-              {/* Delete button */}
-              <button
-                className="absolute top-1 right-1 z-10 w-5 h-5 rounded-full bg-black/60 hover:bg-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deletePhotos([photo.id]);
-                }}
-              >
-                <X className="w-3 h-3 text-white" />
-              </button>
+              
               <img 
                 src={photo.preview} 
                 alt="" 
