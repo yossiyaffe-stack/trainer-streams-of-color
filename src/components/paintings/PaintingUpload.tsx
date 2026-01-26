@@ -11,7 +11,7 @@ import {
   Building2,
   Search,
   Download,
-  ChevronDown
+  Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -20,11 +20,6 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -84,7 +79,7 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
   const [recentPaintings, setRecentPaintings] = useState<Painting[]>([]);
 
   // Museum import state
-  const [museumOpen, setMuseumOpen] = useState(false);
+  
   const [museumQuery, setMuseumQuery] = useState('');
   const [museumResults, setMuseumResults] = useState<MuseumArtwork[]>([]);
   const [selectedMuseumIds, setSelectedMuseumIds] = useState<Set<string>>(new Set());
@@ -357,24 +352,17 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
       </div>
 
       {/* Museum Import Section */}
-      <Collapsible open={museumOpen} onOpenChange={setMuseumOpen}>
-        <CollapsibleTrigger asChild>
-          <Button 
-            variant="outline" 
-            className="w-full justify-between border-dashed border-2 hover:border-accent hover:bg-accent/5"
-          >
-            <div className="flex items-center gap-2">
-              <Building2 className="w-4 h-4" />
-              <span>Import from Museum Collections</span>
-              <Badge variant="secondary" className="ml-2">
-                Art Institute of Chicago • The Met
-              </Badge>
-            </div>
-            <ChevronDown className={cn("w-4 h-4 transition-transform", museumOpen && "rotate-180")} />
-          </Button>
-        </CollapsibleTrigger>
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <Building2 className="w-5 h-5 text-primary" />
+          <h3 className="font-semibold text-lg">Import from Museum Collections</h3>
+          <Badge variant="secondary" className="ml-2">
+            <Sparkles className="w-3 h-3 mr-1" />
+            Art Institute of Chicago • The Met
+          </Badge>
+        </div>
         
-        <CollapsibleContent className="pt-4">
+        <Card className="p-4 border-accent/30 bg-accent/5">
           <Card className="p-4 border-accent/30 bg-accent/5">
             <div className="space-y-4">
               {/* Museum Search */}
@@ -556,8 +544,8 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
               )}
             </div>
           </Card>
-        </CollapsibleContent>
-      </Collapsible>
+        </Card>
+      </div>
 
       {/* File List */}
       {files.length > 0 && (
