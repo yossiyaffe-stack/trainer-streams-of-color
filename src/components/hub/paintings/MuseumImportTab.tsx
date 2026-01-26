@@ -33,31 +33,41 @@ interface MuseumArtwork {
   isPublicDomain: boolean;
 }
 
-const ARTISTS = [
-  { name: 'Alphonse Mucha', query: 'mucha', movement: 'Art Nouveau', years: '1860-1939' },
-  { name: 'Amedeo Modigliani', query: 'modigliani', movement: 'Expressionism', years: '1884-1920' },
-  { name: 'Caravaggio', query: 'caravaggio', movement: 'Baroque', years: '1571-1610' },
-  { name: 'Claude Monet', query: 'monet', movement: 'Impressionism', years: '1840-1926' },
-  { name: 'Dante Gabriel Rossetti', query: 'rossetti', movement: 'Pre-Raphaelite', years: '1828-1882' },
-  { name: 'Edgar Degas', query: 'degas', movement: 'Impressionism', years: '1834-1917' },
-  { name: 'Édouard Manet', query: 'manet', movement: 'Impressionism/Realism', years: '1832-1883' },
-  { name: 'El Greco', query: 'el-greco', movement: 'Mannerist', years: '1541-1614' },
-  { name: 'Gustav Klimt', query: 'klimt', movement: 'Art Nouveau/Symbolism', years: '1862-1918' },
-  { name: 'Henri Matisse', query: 'matisse', movement: 'Fauvism/Modernism', years: '1869-1954' },
-  { name: 'Ingres', query: 'ingres', movement: 'Neoclassical', years: '1780-1867' },
-  { name: 'Jean-Baptiste-Camille Corot', query: 'corot', movement: 'Realism/Barbizon', years: '1796-1875' },
-  { name: 'Johannes Vermeer', query: 'vermeer', movement: 'Dutch Golden Age', years: '1632-1675' },
-  { name: 'John Singer Sargent', query: 'sargent', movement: 'Realism/Impressionism', years: '1856-1925' },
-  { name: 'Leonardo da Vinci', query: 'da-vinci leonardo', movement: 'High Renaissance', years: '1452-1519' },
-  { name: 'Mary Cassatt', query: 'cassatt', movement: 'Impressionism', years: '1844-1926' },
-  { name: 'Odilon Redon', query: 'odilon-redon', movement: 'Symbolist', years: '1840-1916' },
-  { name: 'Pablo Picasso', query: 'picasso', movement: 'Cubism/Modernism', years: '1881-1973' },
-  { name: 'Paul Gauguin', query: 'gauguin', movement: 'Post-Impressionism', years: '1848-1903' },
-  { name: 'Pierre-Auguste Renoir', query: 'renoir', movement: 'Impressionism', years: '1841-1919' },
-  { name: 'Raphael', query: 'raphael', movement: 'High Renaissance', years: '1483-1520' },
-  { name: 'Rembrandt van Rijn', query: 'rembrandt', movement: 'Dutch Golden Age', years: '1606-1669' },
-  { name: 'Sandro Botticelli', query: 'botticelli', movement: 'Early Renaissance', years: '1445-1510' },
-  { name: 'Vincent van Gogh', query: 'van-gogh', movement: 'Post-Impressionism', years: '1853-1890' },
+// Nechama's Favorite Artists (from docs/fetch_paintings_reference.py)
+// Maps to specific seasonal subtypes in her methodology
+const FAVORITE_ARTISTS = [
+  { name: 'Claude Monet', query: 'monet', subtypes: 'Ballerina Summer, Water Lily Summer, Chinoiserie Summer' },
+  { name: 'Johannes Vermeer', query: 'vermeer', subtypes: 'Summer Rose, Porcelain Winter, Renaissance Autumn' },
+  { name: 'Leonardo da Vinci', query: 'da-vinci leonardo', subtypes: 'Sunlit Autumn, Tapestry Winter, Mediterranean Winter' },
+  { name: 'Amedeo Modigliani', query: 'modigliani', subtypes: 'Mellow Autumn, Tapestry Winter, Burnished Autumn' },
+  { name: 'Jean-Baptiste-Camille Corot', query: 'corot', subtypes: 'Burnished Autumn, Mellow Autumn, Tapestry Autumn' },
+  { name: 'Mary Cassatt', query: 'cassatt', subtypes: 'French Spring, Ballerina Summer' },
+  { name: 'Pierre-Auguste Renoir', query: 'renoir', subtypes: 'French Spring' },
+  { name: 'John Singer Sargent', query: 'sargent', subtypes: 'Cloisonne Autumn, Renaissance Autumn, Cameo Summer' },
+  { name: 'Dante Gabriel Rossetti', query: 'rossetti', subtypes: 'Water Lily Summer, Cloisonne Autumn' },
+  { name: 'Edgar Degas', query: 'degas', subtypes: 'Degas Summer, Cameo Summer' },
+  { name: 'Henri Matisse', query: 'matisse', subtypes: 'Crystal Winter, Water Lily Summer' },
+  { name: 'Pablo Picasso', query: 'picasso', subtypes: 'Crystal Winter' },
+  { name: 'Vincent van Gogh', query: 'van-gogh', subtypes: 'Sunlit Autumn' },
+  { name: 'Paul Gauguin', query: 'gauguin', subtypes: 'Burnished Autumn, Multi-Colored Autumn' },
+  { name: 'Édouard Manet', query: 'manet', subtypes: 'Chinoiserie Summer, Cameo Summer' },
+  { name: 'El Greco', query: 'el-greco', subtypes: 'Mediterranean Winter' },
+  { name: 'Ingres', query: 'ingres', subtypes: 'Cameo Summer' },
+  { name: 'Odilon Redon', query: 'odilon-redon', subtypes: 'French Spring' },
+];
+
+// Additional master artists for broader searches
+const MORE_ARTISTS = [
+  { name: 'Alphonse Mucha', query: 'mucha', movement: 'Art Nouveau' },
+  { name: 'Caravaggio', query: 'caravaggio', movement: 'Baroque' },
+  { name: 'Gustav Klimt', query: 'klimt', movement: 'Art Nouveau/Symbolism' },
+  { name: 'Raphael', query: 'raphael', movement: 'High Renaissance' },
+  { name: 'Rembrandt van Rijn', query: 'rembrandt', movement: 'Dutch Golden Age' },
+  { name: 'Sandro Botticelli', query: 'botticelli', movement: 'Early Renaissance' },
+  { name: 'Titian', query: 'titian', movement: 'Venetian Renaissance' },
+  { name: 'William Waterhouse', query: 'waterhouse', movement: 'Pre-Raphaelite' },
+  { name: 'Sir Lawrence Alma-Tadema', query: 'alma-tadema', movement: 'Victorian Classicism' },
+  { name: 'Lord Leighton', query: 'leighton frederic', movement: 'Victorian Classicism' },
 ];
 
 const QUICK_SEARCHES = [
@@ -264,42 +274,47 @@ export function MuseumImportTab() {
           ))}
         </div>
         
-        {/* Artist Selector */}
-        <div className="flex gap-3 items-center pt-2">
-          <span className="text-sm text-muted-foreground font-medium">🎨 By Artist:</span>
-          <Select
-            onValueChange={(value) => {
-              const artist = ARTISTS.find(a => a.query === value);
-              if (artist) {
-                setSearchQuery(artist.name);
-                searchMuseums(artist.query);
-              }
-            }}
-          >
-            <SelectTrigger className="w-[280px] bg-background">
-              <SelectValue placeholder="Select an artist..." />
-            </SelectTrigger>
-            <SelectContent className="max-h-[300px] bg-popover z-50">
-              {ARTISTS.map(artist => (
-                <SelectItem key={artist.query} value={artist.query}>
-                  <div className="flex flex-col">
-                    <span className="font-medium">{artist.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {artist.movement} • {artist.years}
-                    </span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* Favorite Artists Section */}
+        <div className="flex flex-col gap-3 pt-3 border-t">
+          <div className="flex gap-3 items-center">
+            <span className="text-sm font-medium flex items-center gap-1.5">
+              ⭐ Favorite Artists
+              <span className="text-xs text-muted-foreground font-normal">(Nechama's references)</span>
+            </span>
+            <Select
+              onValueChange={(value) => {
+                const artist = FAVORITE_ARTISTS.find(a => a.query === value);
+                if (artist) {
+                  setSearchQuery(artist.name);
+                  searchMuseums(artist.query);
+                }
+              }}
+            >
+              <SelectTrigger className="w-[300px] bg-background">
+                <SelectValue placeholder="Select a favorite artist..." />
+              </SelectTrigger>
+              <SelectContent className="max-h-[300px] bg-popover z-50">
+                {FAVORITE_ARTISTS.map(artist => (
+                  <SelectItem key={artist.query} value={artist.query}>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{artist.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {artist.subtypes}
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           
-          {/* Quick Artist Badges */}
+          {/* Quick Favorite Badges */}
           <div className="flex flex-wrap gap-1.5">
-            {ARTISTS.slice(0, 6).map(artist => (
+            {FAVORITE_ARTISTS.slice(0, 8).map(artist => (
               <Badge
                 key={artist.query}
                 variant="outline"
-                className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors text-xs"
+                className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors text-xs"
                 onClick={() => {
                   setSearchQuery(artist.name);
                   searchMuseums(artist.query);
@@ -308,6 +323,36 @@ export function MuseumImportTab() {
                 {artist.name.split(' ').pop()}
               </Badge>
             ))}
+          </div>
+
+          {/* More Artists Dropdown */}
+          <div className="flex gap-3 items-center">
+            <span className="text-sm text-muted-foreground">More artists:</span>
+            <Select
+              onValueChange={(value) => {
+                const artist = MORE_ARTISTS.find(a => a.query === value);
+                if (artist) {
+                  setSearchQuery(artist.name);
+                  searchMuseums(artist.query);
+                }
+              }}
+            >
+              <SelectTrigger className="w-[260px] bg-background">
+                <SelectValue placeholder="Browse more masters..." />
+              </SelectTrigger>
+              <SelectContent className="bg-popover z-50">
+                {MORE_ARTISTS.map(artist => (
+                  <SelectItem key={artist.query} value={artist.query}>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{artist.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {artist.movement}
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </div>
