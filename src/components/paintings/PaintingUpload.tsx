@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, Image, Loader2, Check, AlertCircle, X, Eye } from 'lucide-react';
+import { Upload, Image, Loader2, Check, AlertCircle, X, Eye, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { PaintingDetailModal } from './PaintingDetailModal';
+import { AnalysisOptionsDialog, type AnalysisOption } from './AnalysisOptionsDialog';
 import type { Painting, PaintingAnalysis } from '@/types/paintings';
 
 interface PaintingUploadProps {
@@ -28,6 +29,8 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedPainting, setSelectedPainting] = useState<Painting | null>(null);
   const [recentPaintings, setRecentPaintings] = useState<Painting[]>([]);
+  const [showOptionsDialog, setShowOptionsDialog] = useState(false);
+  const [selectedAnalysisOptions, setSelectedAnalysisOptions] = useState<AnalysisOption[]>([]);
 
   // Load recent paintings from database on mount
   useEffect(() => {
@@ -79,8 +82,9 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
     setFiles(prev => [...prev, ...uploadFiles]);
   };
 
-  const processFiles = async () => {
+  const processFiles = async (options?: AnalysisOption[]) => {
     setIsProcessing(true);
+    setShowOptionsDialog(false);
     
     for (const uploadFile of files.filter(f => f.status === 'pending')) {
       try {
@@ -114,10 +118,10 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
         // Convert to base64 for AI analysis
         const base64 = await fileToBase64(uploadFile.file);
 
-        // Call AI analysis
+        // Call AI analysis with options
         const { data: analysisData, error: analysisError } = await supabase.functions
           .invoke('analyze-painting', {
-            body: { imageBase64: base64 }
+            body: { imageBase64: base64, analysisOptions: options }
           });
 
         if (analysisError) throw analysisError;
@@ -270,26 +274,38 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
                 📸 {pendingCount} painting{pendingCount > 1 ? 's' : ''} ready to save!
               </h3>
               <p className="text-muted-foreground mb-4">
-                Click the button below to analyze and save to your gallery
+                Choose what to analyze or run a full analysis
               </p>
-              <Button 
-                size="lg" 
-                onClick={processFiles} 
-                disabled={isProcessing}
-                className="text-lg px-8 py-6 h-auto font-bold"
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Saving & Analyzing...
-                  </>
-                ) : (
-                  <>
-                    <Image className="w-5 h-5 mr-2" />
-                    💾 Save & Analyze {pendingCount} Painting{pendingCount > 1 ? 's' : ''}
-                  </>
-                )}
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button 
+                  size="lg" 
+                  variant="outline"
+                  onClick={() => setShowOptionsDialog(true)}
+                  disabled={isProcessing}
+                  className="text-lg px-6 py-5 h-auto font-bold"
+                >
+                  <Settings2 className="w-5 h-5 mr-2" />
+                  🎯 Choose Analysis Options
+                </Button>
+                <Button 
+                  size="lg" 
+                  onClick={() => processFiles()} 
+                  disabled={isProcessing}
+                  className="text-lg px-8 py-5 h-auto font-bold"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Saving & Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <Image className="w-5 h-5 mr-2" />
+                      💾 Full Analysis
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           )}
           
@@ -438,6 +454,15 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
           />
         )}
       </AnimatePresence>
+
+      {/* Analysis Options Dialog */}
+      <AnalysisOptionsDialog
+        open={showOptionsDialog}
+        onClose={() => setShowOptionsDialog(false)}
+        onAnalyze={(options) => processFiles(options)}
+        isAnalyzing={isProcessing}
+        paintingPreview={files.find(f => f.status === 'pending')?.preview}
+      />
     </div>
   );
 }
