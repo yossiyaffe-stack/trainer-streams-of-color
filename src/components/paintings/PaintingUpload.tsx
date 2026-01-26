@@ -121,7 +121,7 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
   const [selectedMuseumIds, setSelectedMuseumIds] = useState<Set<string>>(new Set());
   const [museumLoading, setMuseumLoading] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [activeMuseum, setActiveMuseum] = useState<'all' | 'aic' | 'met'>('all');
+  const [activeMuseum, setActiveMuseum] = useState<'all' | 'aic' | 'met' | 'cma'>('all');
 
   // Load recent paintings from database on mount
   useEffect(() => {
@@ -394,7 +394,7 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
           <h3 className="font-semibold text-lg">Import from Museum Collections</h3>
           <Badge variant="secondary" className="ml-2">
             <Sparkles className="w-3 h-3 mr-1" />
-            Art Institute of Chicago • The Met
+            Chicago • The Met • Cleveland
           </Badge>
         </div>
         
@@ -417,13 +417,14 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
                   {[
                     { id: 'all', label: 'All' },
                     { id: 'aic', label: 'Chicago' },
-                    { id: 'met', label: 'Met NYC' }
+                    { id: 'met', label: 'Met' },
+                    { id: 'cma', label: 'Cleveland' }
                   ].map(m => (
                     <Button
                       key={m.id}
                       variant={activeMuseum === m.id ? 'secondary' : 'ghost'}
                       size="sm"
-                      onClick={() => setActiveMuseum(m.id as 'all' | 'aic' | 'met')}
+                      onClick={() => setActiveMuseum(m.id as 'all' | 'aic' | 'met' | 'cma')}
                     >
                       {m.label}
                     </Button>

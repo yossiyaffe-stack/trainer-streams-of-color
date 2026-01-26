@@ -96,6 +96,31 @@ async function searchMetMuseum(query: string, limit: number = 20): Promise<Museu
   return artworks;
 }
 
+// Cleveland Museum of Art (No API key needed!)
+async function searchCleveland(query: string, limit: number = 20): Promise<MuseumArtwork[]> {
+  const searchUrl = `https://openaccess-api.clevelandart.org/api/artworks/?q=${encodeURIComponent(query)}&has_image=1&limit=${limit}`;
+  
+  const response = await fetch(searchUrl);
+  if (!response.ok) throw new Error(`Cleveland API error: ${response.status}`);
+  
+  const data = await response.json();
+  
+  return (data.data || [])
+    .filter((item: any) => item.images?.web?.url)
+    .map((item: any) => ({
+      id: `cma-${item.id}`,
+      title: item.title || 'Untitled',
+      artist: item.creators?.[0]?.description || item.culture?.[0] || 'Unknown',
+      date: item.creation_date || '',
+      imageUrl: item.images.web.url,
+      thumbnailUrl: item.images.web.url.replace('/full/', '/!400,400/'),
+      museum: 'Cleveland Museum of Art',
+      department: item.department,
+      medium: item.technique,
+      isPublicDomain: true
+    }));
+}
+
 // Featured collections for quick browsing
 const FEATURED_SEARCHES = {
   portraits: ['portrait woman', 'portrait lady', 'portrait duchess'],
@@ -134,6 +159,11 @@ serve(async (req) => {
       if (museum === 'met' || museum === 'all') {
         const metResults = await searchMetMuseum(searchQuery, limit);
         results = [...results, ...metResults];
+      }
+      
+      if (museum === 'cma' || museum === 'all') {
+        const cmaResults = await searchCleveland(searchQuery, limit);
+        results = [...results, ...cmaResults];
       }
     } 
     else if (action === 'featured') {
