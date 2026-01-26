@@ -208,10 +208,20 @@ export function PaletteGalleryTab() {
         <div className="text-center py-16 bg-card rounded-2xl border-2 border-dashed">
           <Star className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4" />
           <h3 className="text-xl font-semibold mb-2">No Palette Paintings Yet</h3>
-          <p className="text-muted-foreground max-w-md mx-auto">
-            Save paintings to your palette from the gallery or after uploading. 
-            These become your curated reference collection for client consultations.
+          <p className="text-muted-foreground max-w-md mx-auto mb-4">
+            Add paintings to your palette from the Gallery tab. Click any painting and either:
           </p>
+          <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 bg-muted/50 px-4 py-2 rounded-lg">
+              <Star className="w-4 h-4 text-amber-500" />
+              <span>Click <strong>"Save to Palette"</strong> button</span>
+            </div>
+            <span className="text-xs">OR</span>
+            <div className="flex items-center gap-2 bg-muted/50 px-4 py-2 rounded-lg">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span>Assign a <strong>Nechama Subtype</strong> to auto-add</span>
+            </div>
+          </div>
         </div>
       )}
 
