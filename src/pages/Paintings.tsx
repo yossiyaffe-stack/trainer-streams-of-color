@@ -46,17 +46,26 @@ export default function Paintings() {
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full max-w-lg mx-auto grid-cols-3 mb-8">
-                <TabsTrigger value="upload" className="flex items-center gap-2">
-                  <Upload className="w-4 h-4" />
+              <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-3 mb-8 h-14 bg-card border-2 border-primary/20 shadow-lg rounded-xl p-1.5">
+                <TabsTrigger 
+                  value="upload" 
+                  className="flex items-center gap-2 text-base font-medium rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+                >
+                  <Upload className="w-5 h-5" />
                   Upload
                 </TabsTrigger>
-                <TabsTrigger value="museum" className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4" />
+                <TabsTrigger 
+                  value="museum" 
+                  className="flex items-center gap-2 text-base font-medium rounded-lg data-[state=active]:bg-accent data-[state=active]:text-accent-foreground data-[state=active]:shadow-md transition-all"
+                >
+                  <Building2 className="w-5 h-5" />
                   Museum Import
                 </TabsTrigger>
-                <TabsTrigger value="gallery" className="flex items-center gap-2">
-                  <Grid3X3 className="w-4 h-4" />
+                <TabsTrigger 
+                  value="gallery" 
+                  className="flex items-center gap-2 text-base font-medium rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+                >
+                  <Grid3X3 className="w-5 h-5" />
                   Gallery
                 </TabsTrigger>
               </TabsList>
