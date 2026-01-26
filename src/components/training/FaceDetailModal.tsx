@@ -383,7 +383,19 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
                     <Label>Subtype (Nechama's Names)</Label>
                     <Select 
                       value={editFields.confirmed_subtype} 
-                      onValueChange={(v) => handleFieldChange('confirmed_subtype', v)}
+                      onValueChange={(v) => {
+                        // Find the subtype to also update season automatically
+                        const selectedSubtype = subtypes.find(s => s.name === v);
+                        if (selectedSubtype) {
+                          setEditFields(prev => ({
+                            ...prev,
+                            confirmed_subtype: v,
+                            confirmed_season: selectedSubtype.season.toLowerCase(),
+                          }));
+                        } else {
+                          handleFieldChange('confirmed_subtype', v);
+                        }
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select subtype" />
