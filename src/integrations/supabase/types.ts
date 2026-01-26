@@ -14,7 +14,105 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      paintings: {
+        Row: {
+          ai_analysis: Json | null
+          analyzed_at: string | null
+          artist: string | null
+          best_for: string[] | null
+          client_talking_points: string[] | null
+          color_mood: string | null
+          corrections: Json | null
+          created_at: string | null
+          era: string | null
+          fabrics: string[] | null
+          id: string
+          image_url: string
+          jewelry_types: string[] | null
+          mood_primary: string | null
+          mood_secondary: string[] | null
+          neckline: string | null
+          notes: string | null
+          original_filename: string | null
+          palette_effect: string | null
+          prints_patterns: string[] | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          silhouette: string | null
+          sleeves: string | null
+          status: string | null
+          suggested_season: string | null
+          tags: string[] | null
+          thumbnail_url: string | null
+          title: string | null
+          year_approximate: string | null
+        }
+        Insert: {
+          ai_analysis?: Json | null
+          analyzed_at?: string | null
+          artist?: string | null
+          best_for?: string[] | null
+          client_talking_points?: string[] | null
+          color_mood?: string | null
+          corrections?: Json | null
+          created_at?: string | null
+          era?: string | null
+          fabrics?: string[] | null
+          id?: string
+          image_url: string
+          jewelry_types?: string[] | null
+          mood_primary?: string | null
+          mood_secondary?: string[] | null
+          neckline?: string | null
+          notes?: string | null
+          original_filename?: string | null
+          palette_effect?: string | null
+          prints_patterns?: string[] | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          silhouette?: string | null
+          sleeves?: string | null
+          status?: string | null
+          suggested_season?: string | null
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          title?: string | null
+          year_approximate?: string | null
+        }
+        Update: {
+          ai_analysis?: Json | null
+          analyzed_at?: string | null
+          artist?: string | null
+          best_for?: string[] | null
+          client_talking_points?: string[] | null
+          color_mood?: string | null
+          corrections?: Json | null
+          created_at?: string | null
+          era?: string | null
+          fabrics?: string[] | null
+          id?: string
+          image_url?: string
+          jewelry_types?: string[] | null
+          mood_primary?: string | null
+          mood_secondary?: string[] | null
+          neckline?: string | null
+          notes?: string | null
+          original_filename?: string | null
+          palette_effect?: string | null
+          prints_patterns?: string[] | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          silhouette?: string | null
+          sleeves?: string | null
+          status?: string | null
+          suggested_season?: string | null
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          title?: string | null
+          year_approximate?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
