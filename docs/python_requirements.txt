@@ -1,0 +1,23 @@
+# Streams of Color - Requirements
+# ================================
+
+# Core
+supabase>=2.0.0
+python-dotenv>=1.0.0
+
+# Image Processing
+Pillow>=10.0.0
+numpy>=1.24.0
+
+# Dataset Loading
+datasets>=2.14.0
+tqdm>=4.65.0
+
+# Optional: Better Face Detection
+# opencv-python>=4.8.0
+# mediapipe>=0.10.0
+
+# Optional: Deep Learning (for model training)
+# torch>=2.0.0
+# torchvision>=0.15.0
+# timm>=0.9.0
