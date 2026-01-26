@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
@@ -16,6 +16,7 @@ import { SAMPLE_SUBTYPES } from '@/data/subtypes';
 import { BulkPhoto } from '@/types/training';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Camera, 
   CheckSquare, 
@@ -41,6 +42,39 @@ export default function Training() {
   
   // Shared photo state for grid view and re-analysis
   const [trainingPhotos, setTrainingPhotos] = useState<BulkPhoto[]>([]);
+  
+  // Real stats from database
+  const [dbStats, setDbStats] = useState({
+    totalPhotos: 0,
+    confirmedPhotos: 0,
+    accuracy: 0,
+    pendingClusters: 0,
+  });
+
+  useEffect(() => {
+    async function fetchStats() {
+      // Fetch from the v_dataset_stats view
+      const { data: viewData } = await supabase
+        .from('v_dataset_stats')
+        .select('*')
+        .maybeSingle();
+      
+      if (viewData) {
+        const total = Number(viewData.total_images) || 0;
+        const confirmed = Number(viewData.expert_verified || 0) + Number(viewData.nechama_verified || 0);
+        const trainingReady = Number(viewData.training_ready) || 0;
+        const needsReview = Number(viewData.needs_review) || 0;
+        
+        setDbStats({
+          totalPhotos: total,
+          confirmedPhotos: confirmed,
+          accuracy: total > 0 && trainingReady > 0 ? Math.round((trainingReady / total) * 100) : 0,
+          pendingClusters: needsReview,
+        });
+      }
+    }
+    fetchStats();
+  }, []);
   
   const handleUpdatePhoto = (id: string, updates: Partial<BulkPhoto>) => {
     setTrainingPhotos(prev => prev.map(p => 
@@ -126,14 +160,7 @@ export default function Training() {
             transition={{ delay: 0.1 }}
             className="mb-8"
           >
-            <StatsOverview 
-              stats={{
-                totalPhotos: 142,
-                confirmedPhotos: 98,
-                accuracy: 87,
-                pendingClusters: 3,
-              }}
-            />
+            <StatsOverview stats={dbStats} />
           </motion.div>
 
           {/* Tabs */}
