@@ -1,12 +1,11 @@
 import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, Image, Loader2, Check, AlertCircle, X, Eye, Settings2 } from 'lucide-react';
+import { Upload, Image, Loader2, Check, AlertCircle, X, Eye, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { PaintingDetailModal } from './PaintingDetailModal';
-import { AnalysisOptionsDialog, type AnalysisOption } from './AnalysisOptionsDialog';
 import type { Painting, PaintingAnalysis } from '@/types/paintings';
 
 interface PaintingUploadProps {
@@ -17,7 +16,7 @@ interface UploadingFile {
   id: string;
   file: File;
   preview: string;
-  status: 'pending' | 'uploading' | 'analyzing' | 'complete' | 'error';
+  status: 'pending' | 'uploading' | 'complete' | 'error';
   progress: number;
   error?: string;
   paintingData?: Painting;
@@ -29,8 +28,6 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedPainting, setSelectedPainting] = useState<Painting | null>(null);
   const [recentPaintings, setRecentPaintings] = useState<Painting[]>([]);
-  const [showOptionsDialog, setShowOptionsDialog] = useState(false);
-  const [selectedAnalysisOptions, setSelectedAnalysisOptions] = useState<AnalysisOption[]>([]);
 
   // Load recent paintings from database on mount
   useEffect(() => {
@@ -82,15 +79,14 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
     setFiles(prev => [...prev, ...uploadFiles]);
   };
 
-  const processFiles = async (options?: AnalysisOption[]) => {
+  const saveToGallery = async () => {
     setIsProcessing(true);
-    setShowOptionsDialog(false);
     
     for (const uploadFile of files.filter(f => f.status === 'pending')) {
       try {
         // Update status to uploading
         setFiles(prev => prev.map(f => 
-          f.id === uploadFile.id ? { ...f, status: 'uploading', progress: 10 } : f
+          f.id === uploadFile.id ? { ...f, status: 'uploading', progress: 20 } : f
         ));
 
         // Upload to storage
@@ -112,50 +108,16 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
         const imageUrl = urlData.publicUrl;
 
         setFiles(prev => prev.map(f => 
-          f.id === uploadFile.id ? { ...f, status: 'analyzing', progress: 40 } : f
+          f.id === uploadFile.id ? { ...f, progress: 70 } : f
         ));
 
-        // Convert to base64 for AI analysis
-        const base64 = await fileToBase64(uploadFile.file);
-
-        // Call AI analysis with options
-        const { data: analysisData, error: analysisError } = await supabase.functions
-          .invoke('analyze-painting', {
-            body: { imageBase64: base64, analysisOptions: options }
-          });
-
-        if (analysisError) throw analysisError;
-
-        setFiles(prev => prev.map(f => 
-          f.id === uploadFile.id ? { ...f, progress: 80 } : f
-        ));
-
-        const analysis = analysisData.analysis;
-
-        // Save to database and get the created record
+        // Save to database WITHOUT analysis
         const paintingRecord = {
           image_url: imageUrl,
           thumbnail_url: imageUrl,
           original_filename: uploadFile.file.name,
-          title: analysis.title_suggestion,
-          artist: analysis.artist_detected,
-          era: analysis.era_detected,
-          ai_analysis: analysis,
-          fabrics: [...(analysis.fabrics?.primary || []), ...(analysis.fabrics?.secondary || [])],
-          silhouette: analysis.silhouette?.primary,
-          neckline: analysis.neckline,
-          sleeves: analysis.sleeves,
-          color_mood: analysis.colors?.color_mood,
-          palette_effect: analysis.palette_effect,
-          prints_patterns: analysis.prints_patterns,
-          jewelry_types: analysis.jewelry_accessories?.items,
-          mood_primary: analysis.mood?.primary,
-          mood_secondary: analysis.mood?.secondary,
-          suggested_season: analysis.suggested_seasons?.primary,
-          best_for: analysis.best_for,
-          client_talking_points: analysis.client_talking_points,
-          status: 'analyzed',
-          analyzed_at: new Date().toISOString(),
+          title: uploadFile.file.name.replace(/\.[^/.]+$/, ''), // Use filename as title
+          status: 'pending', // Not analyzed yet
         };
 
         const { data: savedPainting, error: dbError } = await supabase
@@ -176,7 +138,7 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
           f.id === uploadFile.id ? { ...f, status: 'complete', progress: 100, paintingData: typedPainting } : f
         ));
 
-        toast.success(`Analyzed: ${analysis.title_suggestion}`);
+        toast.success(`Saved: ${uploadFile.file.name}`);
 
       } catch (error) {
         console.error('Upload error:', error);
@@ -185,7 +147,7 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
             ? { ...f, status: 'error', error: error instanceof Error ? error.message : 'Upload failed' } 
             : f
         ));
-        toast.error(`Failed to process ${uploadFile.file.name}`);
+        toast.error(`Failed to save ${uploadFile.file.name}`);
       }
     }
 
@@ -196,31 +158,17 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
     
     const successCount = files.filter(f => f.status === 'complete').length;
     if (successCount > 0) {
-      toast.success(`Successfully processed ${successCount} painting(s) - saved to gallery!`);
-      // Clear the upload list after successful processing
+      toast.success(`Saved ${successCount} painting(s) to gallery! Click any painting to analyze it.`);
       setFiles([]);
       onUploadComplete?.();
     }
-  };
-
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        const base64 = result.split(',')[1];
-        resolve(base64);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
   };
 
   const clearCompleted = () => {
     setFiles(prev => prev.filter(f => f.status !== 'complete'));
   };
 
-  const handleDeletePainting = async () => {
+  const handlePaintingUpdate = async () => {
     await fetchRecentPaintings();
     setSelectedPainting(null);
   };
@@ -257,7 +205,7 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
             <div>
               <p className="font-medium text-lg">Drop paintings here or click to browse</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Supports JPG, PNG, WebP • AI will analyze fabrics, colors, silhouettes
+                Supports JPG, PNG, WebP • Save first, then analyze from gallery
               </p>
             </div>
           </div>
@@ -267,45 +215,33 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
       {/* File List */}
       {files.length > 0 && (
         <div className="space-y-4">
-          {/* Prominent Save & Analyze Bar */}
+          {/* Prominent Save Button */}
           {pendingCount > 0 && (
             <div className="bg-primary/10 border-2 border-primary rounded-xl p-6 text-center">
               <h3 className="text-xl font-bold text-primary mb-2">
                 📸 {pendingCount} painting{pendingCount > 1 ? 's' : ''} ready to save!
               </h3>
               <p className="text-muted-foreground mb-4">
-                Choose what to analyze or run a full analysis
+                Save to gallery first, then analyze individual paintings with custom options
               </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Button 
-                  size="lg" 
-                  variant="outline"
-                  onClick={() => setShowOptionsDialog(true)}
-                  disabled={isProcessing}
-                  className="text-lg px-6 py-5 h-auto font-bold"
-                >
-                  <Settings2 className="w-5 h-5 mr-2" />
-                  🎯 Choose Analysis Options
-                </Button>
-                <Button 
-                  size="lg" 
-                  onClick={() => processFiles()} 
-                  disabled={isProcessing}
-                  className="text-lg px-8 py-5 h-auto font-bold"
-                >
-                  {isProcessing ? (
-                    <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Saving & Analyzing...
-                    </>
-                  ) : (
-                    <>
-                      <Image className="w-5 h-5 mr-2" />
-                      💾 Full Analysis
-                    </>
-                  )}
-                </Button>
-              </div>
+              <Button 
+                size="lg" 
+                onClick={saveToGallery} 
+                disabled={isProcessing}
+                className="text-lg px-8 py-5 h-auto font-bold"
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Saving to Gallery...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-5 h-5 mr-2" />
+                    💾 Save {pendingCount} to Gallery
+                  </>
+                )}
+              </Button>
             </div>
           )}
           
@@ -365,13 +301,7 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
                   {file.status === 'uploading' && (
                     <div className="text-center text-white">
                       <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
-                      <p className="text-xs">Uploading...</p>
-                    </div>
-                  )}
-                  {file.status === 'analyzing' && (
-                    <div className="text-center text-white">
-                      <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
-                      <p className="text-xs">Analyzing...</p>
+                      <p className="text-xs">Saving...</p>
                     </div>
                   )}
                   {file.status === 'complete' && (
@@ -381,7 +311,7 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
                       </div>
                       <div className="hidden group-hover:block">
                         <Eye className="w-6 h-6 mx-auto mb-1" />
-                        <p className="text-xs font-medium">View Details</p>
+                        <p className="text-xs font-medium">View & Analyze</p>
                       </div>
                     </div>
                   )}
@@ -394,7 +324,7 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
                 </div>
 
                 {/* Progress Bar */}
-                {(file.status === 'uploading' || file.status === 'analyzing') && (
+                {file.status === 'uploading' && (
                   <div className="absolute bottom-0 left-0 right-0">
                     <Progress value={file.progress} className="h-1 rounded-none" />
                   </div>
@@ -410,7 +340,7 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-medium text-lg">📚 Gallery ({recentPaintings.length} saved)</h3>
-            <p className="text-sm text-muted-foreground">Click any painting to view details</p>
+            <p className="text-sm text-muted-foreground">Click to view & analyze</p>
           </div>
           <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
             {recentPaintings.map((painting) => (
@@ -430,14 +360,17 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                   <div className="absolute bottom-0 left-0 right-0 p-2">
                     <p className="text-white text-xs font-medium truncate">{painting.title || 'Untitled'}</p>
-                    {painting.suggested_season && (
+                    {painting.status === 'pending' ? (
+                      <span className="text-amber-300 text-[10px]">📋 Not analyzed yet</span>
+                    ) : painting.suggested_season ? (
                       <span className="text-white/80 text-[10px]">{painting.suggested_season}</span>
-                    )}
+                    ) : null}
                   </div>
                 </div>
-                {painting.status === 'analyzed' && (
-                  <div className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full" />
-                )}
+                {/* Status indicator */}
+                <div className={`absolute top-1 right-1 w-2 h-2 rounded-full ${
+                  painting.status === 'analyzed' ? 'bg-green-500' : 'bg-amber-500'
+                }`} />
               </motion.div>
             ))}
           </div>
@@ -450,19 +383,11 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
           <PaintingDetailModal
             painting={selectedPainting}
             onClose={() => setSelectedPainting(null)}
-            onDelete={handleDeletePainting}
+            onDelete={handlePaintingUpdate}
+            onUpdate={handlePaintingUpdate}
           />
         )}
       </AnimatePresence>
-
-      {/* Analysis Options Dialog */}
-      <AnalysisOptionsDialog
-        open={showOptionsDialog}
-        onClose={() => setShowOptionsDialog(false)}
-        onAnalyze={(options) => processFiles(options)}
-        isAnalyzing={isProcessing}
-        paintingPreview={files.find(f => f.status === 'pending')?.preview}
-      />
     </div>
   );
 }

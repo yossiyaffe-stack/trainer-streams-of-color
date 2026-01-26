@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Palette, Shirt, Sparkles, Crown, Gem, Trash2, Loader2, Check, Tag } from 'lucide-react';
+import { X, Palette, Shirt, Sparkles, Crown, Gem, Trash2, Loader2, Check, Tag, Wand2, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -26,8 +26,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import type { Painting } from '@/types/paintings';
+import type { Painting, PaintingAnalysis } from '@/types/paintings';
 import { AddSubtypeDialog } from '@/components/shared/AddSubtypeDialog';
+import { AnalysisOptionsDialog, type AnalysisOption } from './AnalysisOptionsDialog';
 
 interface Subtype {
   id: string;
@@ -40,6 +41,7 @@ interface PaintingDetailModalProps {
   painting: Painting;
   onClose: () => void;
   onDelete?: () => void;
+  onUpdate?: () => void;
 }
 
 const SEASON_COLORS: Record<string, string> = {
@@ -64,19 +66,24 @@ const SEASON_EMOJIS: Record<string, string> = {
   Winter: '❄️',
 };
 
-export function PaintingDetailModal({ painting, onClose, onDelete }: PaintingDetailModalProps) {
+export function PaintingDetailModal({ painting: initialPainting, onClose, onDelete, onUpdate }: PaintingDetailModalProps) {
   const { toast } = useToast();
+  const [painting, setPainting] = useState(initialPainting);
   const [deleting, setDeleting] = useState(false);
   const [subtypes, setSubtypes] = useState<Subtype[]>([]);
   const [selectedSubtype, setSelectedSubtype] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loadingSubtypes, setLoadingSubtypes] = useState(true);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [showAnalysisOptions, setShowAnalysisOptions] = useState(false);
   
   const analysis = painting.ai_analysis || {};
   const colors = analysis.colors || {};
   const mood = analysis.mood || {};
   const jewelry = analysis.jewelry_accessories || {};
   const seasons = analysis.suggested_seasons || {};
+
+  const isNotAnalyzed = painting.status === 'pending' || !painting.ai_analysis || Object.keys(painting.ai_analysis).length === 0;
 
   // Fetch subtypes on mount
   useEffect(() => {
@@ -99,8 +106,6 @@ export function PaintingDetailModal({ painting, onClose, onDelete }: PaintingDet
 
   // Initialize selected subtype from painting
   useEffect(() => {
-    // Check if painting has a nechama_subtype stored (we'll use palette_effect as the field for now)
-    // Or match by suggested_season + name combination
     if (painting.palette_effect && subtypes.length > 0) {
       const match = subtypes.find(s => s.name === painting.palette_effect || s.slug === painting.palette_effect);
       if (match) {
@@ -138,6 +143,12 @@ export function PaintingDetailModal({ painting, onClose, onDelete }: PaintingDet
 
       if (error) throw error;
 
+      setPainting(prev => ({
+        ...prev,
+        palette_effect: subtype.name,
+        suggested_season: subtype.season.charAt(0).toUpperCase() + subtype.season.slice(1),
+      }));
+
       toast({
         title: 'Subtype Assigned',
         description: `Set to ${subtype.name} (${subtype.season})`,
@@ -153,6 +164,90 @@ export function PaintingDetailModal({ painting, onClose, onDelete }: PaintingDet
     }
   };
 
+  const runAnalysis = async (options?: AnalysisOption[]) => {
+    setAnalyzing(true);
+    setShowAnalysisOptions(false);
+    
+    try {
+      // Fetch the image and convert to base64
+      const response = await fetch(painting.image_url);
+      const blob = await response.blob();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      // Call AI analysis with options
+      const { data: analysisData, error: analysisError } = await supabase.functions
+        .invoke('analyze-painting', {
+          body: { imageBase64: base64, analysisOptions: options }
+        });
+
+      if (analysisError) throw analysisError;
+
+      const analysisResult = analysisData.analysis;
+
+      // Update database with analysis results
+      const updateData = {
+        ai_analysis: analysisResult,
+        title: analysisResult.title_suggestion || painting.title,
+        artist: analysisResult.artist_detected || painting.artist,
+        era: analysisResult.era_detected || painting.era,
+        fabrics: [...(analysisResult.fabrics?.primary || []), ...(analysisResult.fabrics?.secondary || [])],
+        silhouette: analysisResult.silhouette?.primary,
+        neckline: analysisResult.neckline,
+        sleeves: analysisResult.sleeves,
+        color_mood: analysisResult.colors?.color_mood,
+        palette_effect: analysisResult.palette_effect || painting.palette_effect,
+        prints_patterns: analysisResult.prints_patterns,
+        jewelry_types: analysisResult.jewelry_accessories?.items,
+        mood_primary: analysisResult.mood?.primary,
+        mood_secondary: analysisResult.mood?.secondary,
+        suggested_season: analysisResult.suggested_seasons?.primary || painting.suggested_season,
+        best_for: analysisResult.best_for,
+        client_talking_points: analysisResult.client_talking_points,
+        status: 'analyzed',
+        analyzed_at: new Date().toISOString(),
+      };
+
+      const { error: updateError } = await supabase
+        .from('paintings')
+        .update(updateData)
+        .eq('id', painting.id);
+
+      if (updateError) throw updateError;
+
+      // Update local state
+      setPainting(prev => ({
+        ...prev,
+        ...updateData,
+        ai_analysis: analysisResult as PaintingAnalysis,
+      }));
+
+      toast({
+        title: '✨ Analysis Complete',
+        description: `Analyzed: ${analysisResult.title_suggestion || painting.title}`,
+      });
+
+      onUpdate?.();
+
+    } catch (err) {
+      console.error('Analysis error:', err);
+      toast({
+        title: 'Analysis Failed',
+        description: err instanceof Error ? err.message : 'Could not analyze painting',
+        variant: 'destructive',
+      });
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   const handleDelete = async () => {
     setDeleting(true);
     try {
@@ -165,8 +260,11 @@ export function PaintingDetailModal({ painting, onClose, onDelete }: PaintingDet
       if (error) throw error;
 
       // If stored in Supabase storage, delete the file too
-      if (painting.image_url && !painting.image_url.startsWith('http')) {
-        await supabase.storage.from('paintings').remove([painting.image_url]);
+      if (painting.image_url && painting.image_url.includes('supabase')) {
+        const path = painting.image_url.split('/paintings/')[1];
+        if (path) {
+          await supabase.storage.from('paintings').remove([`paintings/${path}`]);
+        }
       }
 
       toast({ title: 'Deleted', description: 'Painting removed from library' });
@@ -200,12 +298,21 @@ export function PaintingDetailModal({ painting, onClose, onDelete }: PaintingDet
         className="bg-card rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col md:flex-row"
       >
         {/* Image */}
-        <div className="md:w-1/2 bg-muted">
+        <div className="md:w-1/2 bg-muted relative">
           <img
             src={painting.image_url}
             alt={painting.title || 'Painting'}
             className="w-full h-64 md:h-full object-contain"
           />
+          {analyzing && (
+            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+              <div className="text-center text-white">
+                <Loader2 className="w-12 h-12 animate-spin mx-auto mb-3" />
+                <p className="font-medium">Analyzing painting...</p>
+                <p className="text-sm text-white/70">This may take a moment</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Details */}
@@ -233,6 +340,64 @@ export function PaintingDetailModal({ painting, onClose, onDelete }: PaintingDet
                 <X className="w-5 h-5" />
               </Button>
             </div>
+
+            {/* Analysis Actions */}
+            {isNotAnalyzed ? (
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+                <h4 className="font-medium mb-2 flex items-center gap-2 text-amber-800 dark:text-amber-200">
+                  <Wand2 className="w-4 h-4" />
+                  Not Analyzed Yet
+                </h4>
+                <p className="text-sm text-amber-700 dark:text-amber-300 mb-4">
+                  Run AI analysis to extract colors, fabrics, silhouettes, and style recommendations.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button 
+                    onClick={() => runAnalysis()} 
+                    disabled={analyzing}
+                    className="flex-1"
+                  >
+                    {analyzing ? (
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Analyzing...</>
+                    ) : (
+                      <><Wand2 className="w-4 h-4 mr-2" /> Full Analysis</>
+                    )}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowAnalysisOptions(true)}
+                    disabled={analyzing}
+                  >
+                    <Settings2 className="w-4 h-4 mr-2" />
+                    Custom Options
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => runAnalysis()}
+                  disabled={analyzing}
+                >
+                  {analyzing ? (
+                    <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Re-analyzing...</>
+                  ) : (
+                    <><Wand2 className="w-3 h-3 mr-1" /> Re-analyze</>
+                  )}
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setShowAnalysisOptions(true)}
+                  disabled={analyzing}
+                >
+                  <Settings2 className="w-3 h-3 mr-1" />
+                  Options
+                </Button>
+              </div>
+            )}
 
             {/* Nechama Subtype Selector */}
             <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
@@ -281,7 +446,6 @@ export function PaintingDetailModal({ painting, onClose, onDelete }: PaintingDet
                   <AddSubtypeDialog
                     onSubtypeAdded={(newSubtype) => {
                       setSubtypes(prev => [...prev, newSubtype]);
-                      // Auto-select the new subtype
                       handleSubtypeChange(newSubtype.id);
                     }}
                   />
@@ -486,10 +650,7 @@ export function PaintingDetailModal({ painting, onClose, onDelete }: PaintingDet
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction 
-                      onClick={handleDelete}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
+                    <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                       Delete
                     </AlertDialogAction>
                   </AlertDialogFooter>
@@ -499,6 +660,15 @@ export function PaintingDetailModal({ painting, onClose, onDelete }: PaintingDet
           </div>
         </ScrollArea>
       </motion.div>
+
+      {/* Analysis Options Dialog */}
+      <AnalysisOptionsDialog
+        open={showAnalysisOptions}
+        onClose={() => setShowAnalysisOptions(false)}
+        onAnalyze={runAnalysis}
+        isAnalyzing={analyzing}
+        paintingPreview={painting.image_url}
+      />
     </motion.div>
   );
 }
