@@ -1,0 +1,300 @@
+import { useState, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import { Upload, Image, Loader2, Check, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+interface PaintingUploadProps {
+  onUploadComplete?: () => void;
+}
+
+interface UploadingFile {
+  id: string;
+  file: File;
+  preview: string;
+  status: 'pending' | 'uploading' | 'analyzing' | 'complete' | 'error';
+  progress: number;
+  error?: string;
+}
+
+export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
+  const [files, setFiles] = useState<UploadingFile[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    const droppedFiles = Array.from(e.dataTransfer.files).filter(
+      f => f.type.startsWith('image/')
+    );
+    addFiles(droppedFiles);
+  }, []);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(e.target.files || []);
+    addFiles(selectedFiles);
+    e.target.value = '';
+  };
+
+  const addFiles = (newFiles: File[]) => {
+    const uploadFiles: UploadingFile[] = newFiles.map(file => ({
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      file,
+      preview: URL.createObjectURL(file),
+      status: 'pending',
+      progress: 0,
+    }));
+    setFiles(prev => [...prev, ...uploadFiles]);
+  };
+
+  const processFiles = async () => {
+    setIsProcessing(true);
+    
+    for (const uploadFile of files.filter(f => f.status === 'pending')) {
+      try {
+        // Update status to uploading
+        setFiles(prev => prev.map(f => 
+          f.id === uploadFile.id ? { ...f, status: 'uploading', progress: 10 } : f
+        ));
+
+        // Upload to storage
+        const fileExt = uploadFile.file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+        const filePath = `paintings/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('paintings')
+          .upload(filePath, uploadFile.file);
+
+        if (uploadError) throw uploadError;
+
+        // Get public URL
+        const { data: urlData } = supabase.storage
+          .from('paintings')
+          .getPublicUrl(filePath);
+
+        const imageUrl = urlData.publicUrl;
+
+        setFiles(prev => prev.map(f => 
+          f.id === uploadFile.id ? { ...f, status: 'analyzing', progress: 40 } : f
+        ));
+
+        // Convert to base64 for AI analysis
+        const base64 = await fileToBase64(uploadFile.file);
+
+        // Call AI analysis
+        const { data: analysisData, error: analysisError } = await supabase.functions
+          .invoke('analyze-painting', {
+            body: { imageBase64: base64 }
+          });
+
+        if (analysisError) throw analysisError;
+
+        setFiles(prev => prev.map(f => 
+          f.id === uploadFile.id ? { ...f, progress: 80 } : f
+        ));
+
+        const analysis = analysisData.analysis;
+
+        // Save to database
+        const { error: dbError } = await supabase
+          .from('paintings')
+          .insert({
+            image_url: imageUrl,
+            thumbnail_url: imageUrl,
+            original_filename: uploadFile.file.name,
+            title: analysis.title_suggestion,
+            artist: analysis.artist_detected,
+            era: analysis.era_detected,
+            ai_analysis: analysis,
+            fabrics: [...(analysis.fabrics?.primary || []), ...(analysis.fabrics?.secondary || [])],
+            silhouette: analysis.silhouette?.primary,
+            neckline: analysis.neckline,
+            sleeves: analysis.sleeves,
+            color_mood: analysis.colors?.color_mood,
+            palette_effect: analysis.palette_effect,
+            prints_patterns: analysis.prints_patterns,
+            jewelry_types: analysis.jewelry_accessories?.items,
+            mood_primary: analysis.mood?.primary,
+            mood_secondary: analysis.mood?.secondary,
+            suggested_season: analysis.suggested_seasons?.primary,
+            best_for: analysis.best_for,
+            client_talking_points: analysis.client_talking_points,
+            status: 'analyzed',
+            analyzed_at: new Date().toISOString(),
+          });
+
+        if (dbError) throw dbError;
+
+        setFiles(prev => prev.map(f => 
+          f.id === uploadFile.id ? { ...f, status: 'complete', progress: 100 } : f
+        ));
+
+        toast.success(`Analyzed: ${analysis.title_suggestion}`);
+
+      } catch (error) {
+        console.error('Upload error:', error);
+        setFiles(prev => prev.map(f => 
+          f.id === uploadFile.id 
+            ? { ...f, status: 'error', error: error instanceof Error ? error.message : 'Upload failed' } 
+            : f
+        ));
+        toast.error(`Failed to process ${uploadFile.file.name}`);
+      }
+    }
+
+    setIsProcessing(false);
+    
+    const successCount = files.filter(f => f.status === 'complete').length;
+    if (successCount > 0) {
+      toast.success(`Successfully processed ${successCount} painting(s)`);
+      onUploadComplete?.();
+    }
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove the data URL prefix
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const clearCompleted = () => {
+    setFiles(prev => prev.filter(f => f.status !== 'complete'));
+  };
+
+  const pendingCount = files.filter(f => f.status === 'pending').length;
+  const completedCount = files.filter(f => f.status === 'complete').length;
+
+  return (
+    <div className="space-y-6">
+      {/* Drop Zone */}
+      <div
+        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        className={`border-2 border-dashed rounded-2xl p-12 text-center transition-colors ${
+          isDragging 
+            ? 'border-primary bg-primary/5' 
+            : 'border-border hover:border-primary/50'
+        }`}
+      >
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleFileSelect}
+          className="hidden"
+          id="painting-upload"
+        />
+        <label htmlFor="painting-upload" className="cursor-pointer">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+              <Upload className="w-8 h-8 text-primary" />
+            </div>
+            <div>
+              <p className="font-medium text-lg">Drop paintings here or click to browse</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Supports JPG, PNG, WebP • AI will analyze fabrics, colors, silhouettes
+              </p>
+            </div>
+          </div>
+        </label>
+      </div>
+
+      {/* File List */}
+      {files.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium">
+              {pendingCount} pending • {completedCount} complete
+            </h3>
+            <div className="flex gap-2">
+              {completedCount > 0 && (
+                <Button variant="outline" size="sm" onClick={clearCompleted}>
+                  Clear completed
+                </Button>
+              )}
+              {pendingCount > 0 && (
+                <Button onClick={processFiles} disabled={isProcessing}>
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Image className="w-4 h-4 mr-2" />
+                      Analyze {pendingCount} painting{pendingCount > 1 ? 's' : ''}
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {files.map((file) => (
+              <motion.div
+                key={file.id}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="relative aspect-square rounded-lg overflow-hidden border border-border"
+              >
+                <img
+                  src={file.preview}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+                
+                {/* Status Overlay */}
+                <div className={`absolute inset-0 flex items-center justify-center ${
+                  file.status === 'complete' ? 'bg-green-500/80' :
+                  file.status === 'error' ? 'bg-red-500/80' :
+                  file.status !== 'pending' ? 'bg-black/60' : ''
+                }`}>
+                  {file.status === 'uploading' && (
+                    <div className="text-center text-white">
+                      <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                      <p className="text-xs">Uploading...</p>
+                    </div>
+                  )}
+                  {file.status === 'analyzing' && (
+                    <div className="text-center text-white">
+                      <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                      <p className="text-xs">Analyzing...</p>
+                    </div>
+                  )}
+                  {file.status === 'complete' && (
+                    <Check className="w-8 h-8 text-white" />
+                  )}
+                  {file.status === 'error' && (
+                    <AlertCircle className="w-8 h-8 text-white" />
+                  )}
+                </div>
+
+                {/* Progress Bar */}
+                {(file.status === 'uploading' || file.status === 'analyzing') && (
+                  <div className="absolute bottom-0 left-0 right-0">
+                    <Progress value={file.progress} className="h-1 rounded-none" />
+                  </div>
+                )}
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,1 +1,4 @@
 project_id = "rkmorhqnjngkyfcoqmrh"
+
+[functions.analyze-painting]
+verify_jwt = false
