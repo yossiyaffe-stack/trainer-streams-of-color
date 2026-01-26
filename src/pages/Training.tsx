@@ -127,12 +127,18 @@ export default function Training() {
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
           >
+            <div className="flex items-center gap-3 mb-2">
+              <span className="px-3 py-1 text-xs font-medium uppercase tracking-wider bg-primary/10 text-primary rounded-full">
+                AI Training Hub
+              </span>
+            </div>
             <h1 className="font-serif text-4xl md:text-5xl font-bold mb-4">
-              Faces
-              
+              Face Analysis Training
             </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl">
-              Upload photos, review AI predictions, and correct results to improve the model's accuracy.
+            <p className="text-lg text-muted-foreground max-w-3xl">
+              Build training data for the color analysis AI. Import face photos, run AI analysis to extract 
+              skin tone, eye color, hair color, undertone, and contrast—then review and correct predictions 
+              to improve model accuracy over time.
             </p>
           </motion.div>
 
