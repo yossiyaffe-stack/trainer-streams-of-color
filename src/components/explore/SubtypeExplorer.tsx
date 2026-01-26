@@ -190,12 +190,83 @@ export function SubtypeExplorer() {
             </div>
 
             {/* Prints */}
-            <div>
-              <h4 className="font-medium mb-2">Prints & Patterns</h4>
-              <p className="text-muted-foreground text-sm">
-                {selectedSubtype.prints.join(' • ')}
-              </p>
+            {selectedSubtype.prints.length > 0 && (
+              <div className="mb-6">
+                <h4 className="font-medium mb-2">Prints & Patterns</h4>
+                <p className="text-muted-foreground text-sm">
+                  {selectedSubtype.prints.join(' • ')}
+                </p>
+              </div>
+            )}
+
+            {/* Jewelry */}
+            {selectedSubtype.jewelry && (
+              <div className="mb-6">
+                <h4 className="font-medium mb-2">💎 Jewelry</h4>
+                <div className="space-y-2 text-sm">
+                  {selectedSubtype.jewelry.metals?.perfect && (
+                    <p><span className="text-muted-foreground">Metals:</span> {selectedSubtype.jewelry.metals.perfect.join(', ')}</p>
+                  )}
+                  {selectedSubtype.jewelry.stones?.perfect && (
+                    <p><span className="text-muted-foreground">Stones:</span> {selectedSubtype.jewelry.stones.perfect.join(', ')}</p>
+                  )}
+                  {selectedSubtype.jewelry.styles && (
+                    <p><span className="text-muted-foreground">Styles:</span> {selectedSubtype.jewelry.styles.join(', ')}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Makeup */}
+            {selectedSubtype.makeup && (
+              <div className="mb-6">
+                <h4 className="font-medium mb-2">💄 Makeup</h4>
+                <div className="space-y-2 text-sm">
+                  {selectedSubtype.makeup.lips?.perfect && (
+                    <p><span className="text-muted-foreground">Lips:</span> {selectedSubtype.makeup.lips.perfect.join(', ')}</p>
+                  )}
+                  {selectedSubtype.makeup.cheeks?.perfect && (
+                    <p><span className="text-muted-foreground">Cheeks:</span> {selectedSubtype.makeup.cheeks.perfect.join(', ')}</p>
+                  )}
+                  {selectedSubtype.makeup.eyes?.perfect && (
+                    <p><span className="text-muted-foreground">Eyes:</span> {selectedSubtype.makeup.eyes.perfect.join(', ')}</p>
+                  )}
+                  {selectedSubtype.makeup.looks && (
+                    <p><span className="text-muted-foreground">Looks:</span> {selectedSubtype.makeup.looks.join(', ')}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Artists & Designers */}
+            <div className="grid grid-cols-2 gap-4">
+              {selectedSubtype.artists && selectedSubtype.artists.length > 0 && (
+                <div>
+                  <h4 className="font-medium mb-2">🎨 Artists</h4>
+                  <p className="text-muted-foreground text-sm">
+                    {selectedSubtype.artists.join(', ')}
+                  </p>
+                </div>
+              )}
+              {selectedSubtype.designers && selectedSubtype.designers.length > 0 && (
+                <div>
+                  <h4 className="font-medium mb-2">👗 Designers</h4>
+                  <p className="text-muted-foreground text-sm">
+                    {selectedSubtype.designers.join(', ')}
+                  </p>
+                </div>
+              )}
             </div>
+
+            {/* Eras */}
+            {selectedSubtype.eras && selectedSubtype.eras.length > 0 && (
+              <div className="mt-4">
+                <h4 className="font-medium mb-2">🕰️ Historical Eras</h4>
+                <p className="text-muted-foreground text-sm">
+                  {selectedSubtype.eras.join(' • ')}
+                </p>
+              </div>
+            )}
           </motion.div>
         </motion.div>
       )}
