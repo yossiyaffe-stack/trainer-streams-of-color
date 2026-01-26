@@ -42,8 +42,9 @@ interface HubContextValue {
   setPaintings: React.Dispatch<React.SetStateAction<HubPainting[]>>;
   updatePainting: (id: string, updates: Partial<HubPainting>) => void;
   togglePaintingSubtype: (paintingId: string, subtypeId: string) => void;
+  deletePaintings: (ids: string[]) => void;
+  deletePhotos: (ids: string[]) => void;
 }
-
 const HubContext = createContext<HubContextValue | null>(null);
 
 export function useHub() {
@@ -221,6 +222,14 @@ export function HubProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const deletePaintings = useCallback((ids: string[]) => {
+    setPaintings(prev => prev.filter(p => !ids.includes(p.id)));
+  }, []);
+
+  const deletePhotos = useCallback((ids: string[]) => {
+    setPhotos(prev => prev.filter(p => !ids.includes(p.id)));
+  }, []);
+
   const value: HubContextValue = {
     mode, setMode,
     activeTab, setActiveTab,
@@ -228,8 +237,10 @@ export function HubProvider({ children }: { children: ReactNode }) {
     settings, setSettings,
     photos, photoStats, photoAnalyzing, photoProgress,
     addPhotos, analyzePhotos, confirmPhoto, confirmPhotoCorrect, setPhotos,
+    deletePhotos,
     paintings, paintingStats, paintingAnalyzing, paintingProgress,
-    addPaintings, setPaintings, updatePainting, togglePaintingSubtype
+    addPaintings, setPaintings, updatePainting, togglePaintingSubtype,
+    deletePaintings
   };
 
   return (
