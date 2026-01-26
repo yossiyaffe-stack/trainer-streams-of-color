@@ -176,6 +176,37 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Playfair Display', Georgia, serif;
   }
+
+  /* Bold black scrollbars for internal use - high visibility */
+  ::-webkit-scrollbar {
+    width: 14px;
+    height: 14px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(0 0% 90%);
+    border-radius: 7px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(0 0% 10%);
+    border-radius: 7px;
+    border: 2px solid hsl(0 0% 90%);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(0 0% 0%);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: hsl(0 0% 90%);
+  }
+
+  /* Firefox scrollbar */
+  * {
+    scrollbar-width: auto;
+    scrollbar-color: hsl(0 0% 10%) hsl(0 0% 90%);
+  }
 }
 
 @layer components {
