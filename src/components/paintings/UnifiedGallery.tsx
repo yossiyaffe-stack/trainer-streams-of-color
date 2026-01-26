@@ -383,9 +383,9 @@ export function UnifiedGallery() {
                 loading="lazy"
               />
               
-              {/* Delete button */}
+              {/* Delete button - always visible */}
               <button
-                className="absolute top-1 right-1 z-20 w-6 h-6 rounded-full bg-black/60 hover:bg-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                className="absolute top-1 right-1 z-20 w-6 h-6 rounded-full bg-black/70 hover:bg-destructive flex items-center justify-center transition-colors cursor-pointer shadow-md"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleDeletePainting(painting.id);
@@ -408,10 +408,10 @@ export function UnifiedGallery() {
                 </div>
               </div>
 
-              {/* Season Badge */}
+              {/* Season Badge - bottom left to avoid delete button */}
               {painting.suggested_season && (
                 <Badge 
-                  className={`absolute top-1 right-1 text-[10px] px-1.5 py-0.5 ${SEASON_COLORS[painting.suggested_season] || 'bg-muted'}`}
+                  className={`absolute bottom-1 right-1 text-[10px] px-1.5 py-0.5 ${SEASON_COLORS[painting.suggested_season] || 'bg-muted'}`}
                 >
                   {painting.suggested_season}
                 </Badge>
