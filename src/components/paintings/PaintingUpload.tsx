@@ -263,6 +263,36 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
       {/* File List */}
       {files.length > 0 && (
         <div className="space-y-4">
+          {/* Prominent Save & Analyze Bar */}
+          {pendingCount > 0 && (
+            <div className="bg-primary/10 border-2 border-primary rounded-xl p-6 text-center">
+              <h3 className="text-xl font-bold text-primary mb-2">
+                📸 {pendingCount} painting{pendingCount > 1 ? 's' : ''} ready to save!
+              </h3>
+              <p className="text-muted-foreground mb-4">
+                Click the button below to analyze and save to your gallery
+              </p>
+              <Button 
+                size="lg" 
+                onClick={processFiles} 
+                disabled={isProcessing}
+                className="text-lg px-8 py-6 h-auto font-bold"
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Saving & Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Image className="w-5 h-5 mr-2" />
+                    💾 Save & Analyze {pendingCount} Painting{pendingCount > 1 ? 's' : ''}
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+          
           <div className="flex items-center justify-between">
             <h3 className="font-medium">
               {pendingCount} pending • {completedCount} complete
@@ -271,21 +301,6 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
               {completedCount > 0 && (
                 <Button variant="outline" size="sm" onClick={clearCompleted}>
                   Clear completed
-                </Button>
-              )}
-              {pendingCount > 0 && (
-                <Button onClick={processFiles} disabled={isProcessing}>
-                  {isProcessing ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <Image className="w-4 h-4 mr-2" />
-                      Analyze {pendingCount} painting{pendingCount > 1 ? 's' : ''}
-                    </>
-                  )}
                 </Button>
               )}
             </div>
