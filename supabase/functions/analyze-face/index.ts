@@ -90,6 +90,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
+        temperature: 0, // Use temperature 0 for deterministic, consistent results
         messages: [
           {
             role: "user",
