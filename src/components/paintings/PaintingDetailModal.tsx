@@ -791,20 +791,18 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
 
               {/* Save Buttons */}
               <div className="flex flex-col sm:flex-row gap-2">
-                {hasEdits && (
-                  <Button
-                    onClick={saveEdits}
-                    disabled={savingEdits}
-                    variant="outline"
-                    className="flex-1"
-                  >
-                    {savingEdits ? (
-                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
-                    ) : (
-                      <><Save className="w-4 h-4 mr-2" /> Save Changes</>
-                    )}
-                  </Button>
-                )}
+                <Button
+                  onClick={saveEdits}
+                  disabled={savingEdits || !hasEdits}
+                  variant={hasEdits ? "default" : "outline"}
+                  className="flex-1"
+                >
+                  {savingEdits ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
+                  ) : (
+                    <><Save className="w-4 h-4 mr-2" /> {hasEdits ? 'Save Changes' : 'No Changes'}</>
+                  )}
+                </Button>
                 
                 {!isPalettePainting && (
                   <Button
