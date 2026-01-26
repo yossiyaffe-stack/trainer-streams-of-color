@@ -1,13 +1,28 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Palette, Shirt, Sparkles, Crown, Gem } from 'lucide-react';
+import { X, Palette, Shirt, Sparkles, Crown, Gem, Trash2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import type { Painting } from '@/types/paintings';
 
 interface PaintingDetailModalProps {
   painting: Painting;
   onClose: () => void;
+  onDelete?: () => void;
 }
 
 const SEASON_COLORS: Record<string, string> = {
@@ -17,12 +32,45 @@ const SEASON_COLORS: Record<string, string> = {
   Winter: 'bg-purple-100 text-purple-800 border-purple-200',
 };
 
-export function PaintingDetailModal({ painting, onClose }: PaintingDetailModalProps) {
+export function PaintingDetailModal({ painting, onClose, onDelete }: PaintingDetailModalProps) {
+  const { toast } = useToast();
+  const [deleting, setDeleting] = useState(false);
+  
   const analysis = painting.ai_analysis || {};
   const colors = analysis.colors || {};
   const mood = analysis.mood || {};
   const jewelry = analysis.jewelry_accessories || {};
   const seasons = analysis.suggested_seasons || {};
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      // Delete from database
+      const { error } = await supabase
+        .from('paintings')
+        .delete()
+        .eq('id', painting.id);
+
+      if (error) throw error;
+
+      // If stored in Supabase storage, delete the file too
+      if (painting.image_url && !painting.image_url.startsWith('http')) {
+        await supabase.storage.from('paintings').remove([painting.image_url]);
+      }
+
+      toast({ title: 'Deleted', description: 'Painting removed from library' });
+      onDelete?.();
+      onClose();
+    } catch (err) {
+      toast({ 
+        title: 'Delete Failed', 
+        description: err instanceof Error ? err.message : 'Could not delete painting',
+        variant: 'destructive' 
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <motion.div
@@ -229,6 +277,43 @@ export function PaintingDetailModal({ painting, onClose }: PaintingDetailModalPr
                 <strong>Why {painting.suggested_season}?</strong> {seasons.reasoning}
               </div>
             )}
+
+            {/* Delete Button */}
+            <div className="pt-4 border-t">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="w-full gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    disabled={deleting}
+                  >
+                    {deleting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                    Delete Painting
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this painting?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently remove "{painting.title || 'this painting'}" from your library. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={handleDelete}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
         </ScrollArea>
       </motion.div>

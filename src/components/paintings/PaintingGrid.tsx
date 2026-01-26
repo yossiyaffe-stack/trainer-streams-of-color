@@ -190,6 +190,10 @@ export function PaintingGrid() {
         <PaintingDetailModal
           painting={selectedPainting}
           onClose={() => setSelectedPainting(null)}
+          onDelete={() => {
+            setSelectedPainting(null);
+            fetchPaintings();
+          }}
         />
       )}
     </div>
