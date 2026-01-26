@@ -8,19 +8,22 @@ const corsHeaders = {
 // Popular face datasets on Hugging Face
 const FACE_DATASETS = {
   'celebahq': {
-    id: 'korkor/celeba-hq',
+    // Public, viewer-enabled dataset
+    id: 'saitsharipov/CelebA-HQ',
     name: 'CelebA-HQ',
     description: 'High-quality celebrity faces (30k images)',
     imageKey: 'image',
   },
   'ffhq': {
-    id: 'korkor/FFHQ',
+    // Public, viewer-enabled dataset (256px)
+    id: 'bitmind/ffhq-256',
     name: 'FFHQ',
     description: 'Flickr Faces HQ (70k diverse faces)',
     imageKey: 'image',
   },
   'lfw': {
-    id: 'tonyassi/faces-in-the-wild',
+    // Public, viewer-enabled LFW dataset
+    id: 'bitmind/lfw',
     name: 'Labeled Faces in the Wild',
     description: 'Face verification benchmark dataset',
     imageKey: 'image',
@@ -33,7 +36,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { action, dataset, offset = 0, limit = 20 } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const { action, dataset, offset = 0, limit = 20, images } = body as any;
 
     // List available datasets
     if (action === 'list-datasets') {
@@ -54,7 +58,7 @@ Deno.serve(async (req) => {
       if (!dataset || !FACE_DATASETS[dataset as keyof typeof FACE_DATASETS]) {
         return new Response(
           JSON.stringify({ success: false, error: 'Invalid dataset' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -81,9 +85,20 @@ Deno.serve(async (req) => {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('HuggingFace API error:', errorText);
+
+        // Return 200 so the web client gets a structured error (instead of FunctionsHttpError)
+        const hint = response.status === 401
+          ? 'This dataset may be gated. Add an HF_TOKEN in backend secrets or choose a public dataset.'
+          : undefined;
+
         return new Response(
-          JSON.stringify({ success: false, error: `HuggingFace API error: ${response.status}` }),
-          { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({
+            success: false,
+            error: `HuggingFace API error: ${response.status}`,
+            hint,
+            details: errorText?.slice?.(0, 500) || null,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -117,12 +132,10 @@ Deno.serve(async (req) => {
 
     // Import selected images to database
     if (action === 'import') {
-      const { images } = await req.json();
-      
       if (!images || !Array.isArray(images) || images.length === 0) {
         return new Response(
           JSON.stringify({ success: false, error: 'No images provided' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -186,7 +199,7 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ success: false, error: 'Invalid action' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
