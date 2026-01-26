@@ -5,11 +5,10 @@ import { Palette, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 
 const navLinks = [
-  { path: '/', label: 'Home' },
-  { path: '/hub', label: 'Hub' },
-  { path: '/explore', label: 'Explore' },
+  { path: '/', label: 'Faces' },
   { path: '/paintings', label: 'Paintings' },
-  { path: '/faces', label: 'Faces' },
+  { path: '/explore', label: 'Explore' },
+  { path: '/hub', label: 'Hub' },
 ];
 
 export function Header() {
@@ -53,7 +52,7 @@ export function Header() {
           {/* CTA */}
           <div className="hidden md:flex items-center gap-3">
             <Button variant="outline" size="sm" asChild>
-              <Link to="/faces">Start Faces</Link>
+              <Link to="/paintings">Paintings</Link>
             </Button>
           </div>
 
