@@ -5,7 +5,9 @@ import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
 import { PaintingUpload } from '@/components/paintings/PaintingUpload';
 import { PaintingGrid } from '@/components/paintings/PaintingGrid';
-import { Upload, Grid3X3, Library } from 'lucide-react';
+import { MuseumImportTab } from '@/components/hub/paintings/MuseumImportTab';
+import { HubProvider } from '@/contexts/HubContext';
+import { Upload, Grid3X3, Library, Building2 } from 'lucide-react';
 
 export default function Paintings() {
   const [activeTab, setActiveTab] = useState('upload');
@@ -17,55 +19,65 @@ export default function Paintings() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      
-      <main className="container mx-auto px-4 py-8 pt-24">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-7xl mx-auto"
-        >
-          {/* Page Header */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary mb-4">
-              <Library className="w-4 h-4" />
-              <span className="text-sm font-medium">AI Painting Library</span>
+    <HubProvider>
+      <div className="min-h-screen bg-background">
+        <Header />
+        
+        <main className="container mx-auto px-4 py-8 pt-24">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-7xl mx-auto"
+          >
+            {/* Page Header */}
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary mb-4">
+                <Library className="w-4 h-4" />
+                <span className="text-sm font-medium">AI Painting Library</span>
+              </div>
+              <h1 className="font-serif text-4xl md:text-5xl font-bold mb-4">
+                Painting Reference Library
+              </h1>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                Upload paintings and let AI analyze fabrics, colors, silhouettes, and moods 
+                using Nechama's methodology. Build your reference library for client consultations.
+              </p>
             </div>
-            <h1 className="font-serif text-4xl md:text-5xl font-bold mb-4">
-              Painting Reference Library
-            </h1>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Upload paintings and let AI analyze fabrics, colors, silhouettes, and moods 
-              using Nechama's methodology. Build your reference library for client consultations.
-            </p>
-          </div>
 
-          {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8">
-              <TabsTrigger value="upload" className="flex items-center gap-2">
-                <Upload className="w-4 h-4" />
-                Upload & Analyze
-              </TabsTrigger>
-              <TabsTrigger value="gallery" className="flex items-center gap-2">
-                <Grid3X3 className="w-4 h-4" />
-                Gallery
-              </TabsTrigger>
-            </TabsList>
+            {/* Tabs */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full max-w-lg mx-auto grid-cols-3 mb-8">
+                <TabsTrigger value="upload" className="flex items-center gap-2">
+                  <Upload className="w-4 h-4" />
+                  Upload
+                </TabsTrigger>
+                <TabsTrigger value="museum" className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4" />
+                  Museum Import
+                </TabsTrigger>
+                <TabsTrigger value="gallery" className="flex items-center gap-2">
+                  <Grid3X3 className="w-4 h-4" />
+                  Gallery
+                </TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="upload">
-              <PaintingUpload onUploadComplete={handleUploadComplete} />
-            </TabsContent>
+              <TabsContent value="upload">
+                <PaintingUpload onUploadComplete={handleUploadComplete} />
+              </TabsContent>
 
-            <TabsContent value="gallery">
-              <PaintingGrid key={refreshKey} />
-            </TabsContent>
-          </Tabs>
-        </motion.div>
-      </main>
+              <TabsContent value="museum">
+                <MuseumImportTab />
+              </TabsContent>
 
-      <Footer />
-    </div>
+              <TabsContent value="gallery">
+                <PaintingGrid key={refreshKey} />
+              </TabsContent>
+            </Tabs>
+          </motion.div>
+        </main>
+
+        <Footer />
+      </div>
+    </HubProvider>
   );
 }
