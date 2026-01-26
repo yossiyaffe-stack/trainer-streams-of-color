@@ -29,6 +29,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Painting, PaintingAnalysis } from '@/types/paintings';
+import type { Json } from '@/integrations/supabase/types';
 import { AddSubtypeDialog } from '@/components/shared/AddSubtypeDialog';
 import { AnalysisOptionsDialog, type AnalysisOption } from './AnalysisOptionsDialog';
 
@@ -103,6 +104,9 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
   const [editedTalkingPoints, setEditedTalkingPoints] = useState(initialPainting.client_talking_points?.join('\n') || '');
   const [editedArtist, setEditedArtist] = useState(initialPainting.artist || '');
   const [editedEra, setEditedEra] = useState(initialPainting.era || '');
+  const [editedSeasonReasoning, setEditedSeasonReasoning] = useState(
+    (initialPainting.ai_analysis as PaintingAnalysis)?.suggested_seasons?.reasoning || ''
+  );
   
   const analysis = painting.ai_analysis || {};
   const colors = analysis.colors || {};
@@ -128,18 +132,20 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
     const colorMoodChanged = editedColorMood !== (painting.color_mood || '');
     const bestForChanged = editedBestFor !== (painting.best_for?.join(', ') || '');
     const talkingPointsChanged = editedTalkingPoints !== (painting.client_talking_points?.join('\n') || '');
+    const seasonReasoningChanged = editedSeasonReasoning !== ((painting.ai_analysis as PaintingAnalysis)?.suggested_seasons?.reasoning || '');
     
     setHasEdits(
       titleChanged || notesChanged || artistChanged || eraChanged || 
       moodPrimaryChanged || moodSecondaryChanged || fabricsChanged || 
       silhouetteChanged || necklineChanged || sleevesChanged || 
-      jewelryChanged || colorMoodChanged || bestForChanged || talkingPointsChanged
+      jewelryChanged || colorMoodChanged || bestForChanged || talkingPointsChanged ||
+      seasonReasoningChanged
     );
   }, [
     editedTitle, editedNotes, editedArtist, editedEra, editedMoodPrimary, 
     editedMoodSecondary, editedFabrics, editedSilhouette, editedNeckline, 
     editedSleeves, editedJewelry, editedColorMood, editedBestFor, editedTalkingPoints,
-    painting
+    editedSeasonReasoning, painting
   ]);
 
   // Fetch subtypes on mount
@@ -358,6 +364,18 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
       const parseBestFor = editedBestFor.trim() ? editedBestFor.split(',').map(s => s.trim()).filter(Boolean) : null;
       const parseTalkingPoints = editedTalkingPoints.trim() ? editedTalkingPoints.split('\n').map(s => s.trim()).filter(Boolean) : null;
 
+      // Update ai_analysis with new season reasoning if edited
+      const currentAnalysis = (painting.ai_analysis || {}) as Record<string, unknown>;
+      const updatedAiAnalysis = editedSeasonReasoning.trim() 
+        ? {
+            ...currentAnalysis,
+            suggested_seasons: {
+              ...((currentAnalysis.suggested_seasons as Record<string, unknown>) || {}),
+              reasoning: editedSeasonReasoning.trim(),
+            }
+          }
+        : currentAnalysis;
+
       const { error } = await supabase
         .from('paintings')
         .update({
@@ -375,6 +393,7 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
           color_mood: editedColorMood.trim() || null,
           best_for: parseBestFor,
           client_talking_points: parseTalkingPoints,
+          ai_analysis: updatedAiAnalysis as Json,
           status: isPalettePainting ? 'palette' : painting.status,
         })
         .eq('id', painting.id);
@@ -843,12 +862,23 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
               <p className="text-xs text-muted-foreground mt-1">One point per line</p>
             </div>
 
-            {/* Season Reasoning */}
-            {seasons.reasoning && (
-              <div className="text-sm text-muted-foreground border-t pt-4">
-                <strong>Why {painting.suggested_season}?</strong> {seasons.reasoning}
-              </div>
-            )}
+            {/* Season Reasoning - Editable for AI Training */}
+            <div className="bg-gradient-to-r from-primary/5 to-accent/5 border border-primary/20 rounded-lg p-4">
+              <h4 className="font-medium mb-2 flex items-center gap-2">
+                🎓 Why {painting.suggested_season || 'this Season'}?
+                <span className="text-xs text-muted-foreground font-normal">(for AI training)</span>
+              </h4>
+              <Textarea
+                value={editedSeasonReasoning}
+                onChange={(e) => setEditedSeasonReasoning(e.target.value)}
+                placeholder="Explain why this painting belongs to this season. Your insights will help train the AI to make better predictions..."
+                rows={3}
+                className="bg-background"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Your expert reasoning helps improve AI season predictions for future paintings.
+              </p>
+            </div>
 
             {/* Save Actions */}
             <div className="border-t pt-4 space-y-3">
