@@ -701,6 +701,60 @@ export const SUBTYPE_FABRICS: Record<string, SubtypeFabricProfile> = {
     avoid: ["chunkyKnit", "canvas", "fleece", "corduroy"],
     notes: "Crystal Winter shines in fabrics with clarity and sparkle."
   },
+  winterRose: {
+    subtype: "winterRose",
+    name: "Winter Rose",
+    season: "winter",
+    perfect: ["velvet", "silk", "satin", "cashmere", "lace", "chiffon", "crepe"],
+    good: ["wool", "fineKnit", "taffeta", "charmeuse", "georgette", "brocade"],
+    avoid: ["chunkyKnit", "canvas", "fleece"],
+    notes: "Winter Rose blooms in romantic yet dramatic fabrics."
+  },
+  burnishedWinter: {
+    subtype: "burnishedWinter",
+    name: "Burnished Winter",
+    season: "winter",
+    perfect: ["leather", "velvet", "silk", "cashmere", "suede", "wool", "satin"],
+    good: ["crepe", "fineKnit", "brocade", "denim", "tweed", "linen"],
+    avoid: ["fleece", "nylon", "sequined", "chunkyKnit", "canvas", "tulle"],
+    notes: "Burnished Winter glows in warm, luxurious fabrics with depth."
+  },
+  cameoWinter: {
+    subtype: "cameoWinter",
+    name: "Cameo Winter",
+    season: "winter",
+    perfect: ["velvet", "silk", "satin", "cashmere", "lace", "crepe", "charmeuse"],
+    good: ["wool", "fineKnit", "taffeta", "brocade", "georgette", "chiffon"],
+    avoid: ["chunkyKnit", "canvas", "fleece"],
+    notes: "Cameo Winter combines drama with vintage elegance."
+  },
+  grecianAutumn: {
+    subtype: "grecianAutumn",
+    name: "Grecian Autumn",
+    season: "autumn",
+    perfect: ["silk", "crepe", "cashmere", "linen", "suede", "fineKnit", "jersey"],
+    good: ["velvet", "cotton", "rayon", "wool", "leather", "chiffon"],
+    avoid: ["sequined", "chunkyKnit", "brocade", "tweed", "metallic", "nylon"],
+    notes: "Grecian Autumn flows in draped, elegant fabrics."
+  },
+  auburnAutumn: {
+    subtype: "auburnAutumn",
+    name: "Auburn Autumn",
+    season: "autumn",
+    perfect: ["tweed", "leather", "suede", "velvet", "wool", "cashmere", "corduroy"],
+    good: ["denim", "cotton", "linen", "fineKnit", "jersey", "silk"],
+    avoid: ["sequined", "metallic", "nylon", "tulle", "organza"],
+    notes: "Auburn Autumn thrives in rich, textured fabrics with depth."
+  },
+  sunlitAutumn: {
+    subtype: "sunlitAutumn",
+    name: "Sunlit Autumn",
+    season: "autumn",
+    perfect: ["silk", "linen", "cashmere", "suede", "velvet", "cotton", "crepe"],
+    good: ["wool", "leather", "fineKnit", "jersey", "denim", "rayon"],
+    avoid: ["sequined", "metallic", "nylon", "chunkyKnit", "brocade", "tulle"],
+    notes: "Sunlit Autumn glows in warm, natural fabrics."
+  },
 };
 
 // =============================================================================
