@@ -27,6 +27,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Painting } from '@/types/paintings';
+import { AddSubtypeDialog } from '@/components/shared/AddSubtypeDialog';
 
 interface Subtype {
   id: string;
@@ -276,6 +277,14 @@ export function PaintingDetailModal({ painting, onClose, onDelete }: PaintingDet
                       ))}
                     </SelectContent>
                   </Select>
+
+                  <AddSubtypeDialog
+                    onSubtypeAdded={(newSubtype) => {
+                      setSubtypes(prev => [...prev, newSubtype]);
+                      // Auto-select the new subtype
+                      handleSubtypeChange(newSubtype.id);
+                    }}
+                  />
 
                   {selectedSubtypeData && (
                     <div className="flex items-center gap-2 text-sm">

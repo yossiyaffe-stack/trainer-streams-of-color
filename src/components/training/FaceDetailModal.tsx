@@ -28,6 +28,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Constants } from '@/integrations/supabase/types';
+import { AddSubtypeDialog } from '@/components/shared/AddSubtypeDialog';
 
 interface SubtypeOption {
   id: string;
@@ -387,7 +388,7 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
                       <SelectTrigger>
                         <SelectValue placeholder="Select subtype" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-popover">
                         {filteredSubtypes.length > 0 ? (
                           filteredSubtypes.map(subtype => (
                             <SelectItem key={subtype.id} value={subtype.name}>
@@ -404,6 +405,13 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
                         )}
                       </SelectContent>
                     </Select>
+                    <AddSubtypeDialog
+                      defaultSeason={editFields.confirmed_season}
+                      onSubtypeAdded={(newSubtype) => {
+                        setSubtypes(prev => [...prev, newSubtype]);
+                        handleFieldChange('confirmed_subtype', newSubtype.name);
+                      }}
+                    />
                   </div>
                 </div>
 
