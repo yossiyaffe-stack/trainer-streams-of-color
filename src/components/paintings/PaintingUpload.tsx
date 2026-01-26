@@ -115,13 +115,48 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
   const [recentPaintings, setRecentPaintings] = useState<Painting[]>([]);
 
   // Museum import state
-  
   const [museumQuery, setMuseumQuery] = useState('');
   const [museumResults, setMuseumResults] = useState<MuseumArtwork[]>([]);
   const [selectedMuseumIds, setSelectedMuseumIds] = useState<Set<string>>(new Set());
   const [museumLoading, setMuseumLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [activeMuseum, setActiveMuseum] = useState<'all' | 'aic' | 'met' | 'cma'>('all');
+  
+  // Multi-select tags and filters
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+  const [portraitsOnly, setPortraitsOnly] = useState(false);
+
+  // Toggle a tag in multi-select
+  const toggleTag = (query: string) => {
+    setSelectedTags(prev => {
+      const next = new Set(prev);
+      if (next.has(query)) {
+        next.delete(query);
+      } else {
+        next.add(query);
+      }
+      return next;
+    });
+  };
+
+  // Build combined search query from selected tags + portrait filter
+  const buildCombinedQuery = () => {
+    const parts: string[] = [];
+    if (portraitsOnly) parts.push('portrait');
+    selectedTags.forEach(tag => parts.push(tag));
+    if (museumQuery.trim()) parts.push(museumQuery.trim());
+    return parts.join(' ');
+  };
+
+  // Search with combined query
+  const searchWithFilters = () => {
+    const combinedQuery = buildCombinedQuery();
+    if (combinedQuery) {
+      searchMuseums(combinedQuery);
+    } else {
+      toast.error('Please select at least one tag or enter a search term');
+    }
+  };
 
   // Load recent paintings from database on mount
   useEffect(() => {
@@ -430,24 +465,58 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
                     </Button>
                   ))}
                 </div>
-                <Button onClick={() => searchMuseums(museumQuery)} disabled={museumLoading}>
+                <Button onClick={searchWithFilters} disabled={museumLoading}>
                   {museumLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                   <span className="ml-2">Search</span>
                 </Button>
               </div>
 
-              {/* Quick Search Tags */}
+              {/* Portrait Filter + Multi-Select Info */}
+              <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg border">
+                <Button
+                  variant={portraitsOnly ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPortraitsOnly(!portraitsOnly)}
+                  className={cn(
+                    "font-semibold",
+                    portraitsOnly && "bg-primary text-primary-foreground"
+                  )}
+                >
+                  👤 Portraits Only
+                </Button>
+                <div className="text-xs text-muted-foreground">
+                  {selectedTags.size > 0 ? (
+                    <span className="flex items-center gap-2">
+                      <span className="font-medium text-foreground">{selectedTags.size} tags selected</span>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 px-2 text-xs"
+                        onClick={() => setSelectedTags(new Set())}
+                      >
+                        Clear tags
+                      </Button>
+                    </span>
+                  ) : (
+                    'Click tags to select multiple, then Search'
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Search Tags - Multi-Select */}
               <div className="space-y-3">
                 <div className="flex flex-wrap gap-2">
-                  {QUICK_SEARCHES.map(qs => (
+                  {QUICK_SEARCHES.filter(qs => qs.label !== '👸 Portraits').map(qs => (
                     <Badge
                       key={qs.query}
-                      variant="outline"
-                      className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors px-2 py-1 text-xs"
-                      onClick={() => {
-                        setMuseumQuery(qs.query);
-                        searchMuseums(qs.query);
-                      }}
+                      variant={selectedTags.has(qs.query) ? 'default' : 'outline'}
+                      className={cn(
+                        "cursor-pointer transition-colors px-2 py-1 text-xs",
+                        selectedTags.has(qs.query) 
+                          ? "bg-primary text-primary-foreground" 
+                          : "hover:bg-accent hover:text-accent-foreground"
+                      )}
+                      onClick={() => toggleTag(qs.query)}
                     >
                       {qs.label}
                     </Badge>
@@ -458,34 +527,38 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
                   {SEASON_SEARCHES.map(s => (
                     <Badge
                       key={s.label}
-                      variant="secondary"
-                      className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors text-xs"
-                      onClick={() => {
-                        setMuseumQuery(s.query);
-                        searchMuseums(s.query);
-                      }}
+                      variant={selectedTags.has(s.query) ? 'default' : 'secondary'}
+                      className={cn(
+                        "cursor-pointer transition-colors text-xs",
+                        selectedTags.has(s.query) 
+                          ? "bg-primary text-primary-foreground" 
+                          : "hover:bg-primary hover:text-primary-foreground"
+                      )}
+                      onClick={() => toggleTag(s.query)}
                     >
                       {s.emoji} {s.label}
                     </Badge>
                   ))}
                 </div>
                 
-                {/* Favorite Artists */}
+                {/* Favorite Artists - Multi-Select */}
                 <div className="pt-2 border-t space-y-2">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-medium">⭐ Favorite Artists</span>
-                    <span className="text-[10px] text-muted-foreground">(Nechama's references - hover for subtypes)</span>
+                    <span className="text-[10px] text-muted-foreground">(Click to select multiple)</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {FAVORITE_ARTISTS.map(artist => (
                       <Badge
                         key={artist.query}
-                        variant="outline"
-                        className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors px-2 py-0.5 text-xs border-primary/40"
-                        onClick={() => {
-                          setMuseumQuery(artist.name);
-                          searchMuseums(artist.query);
-                        }}
+                        variant={selectedTags.has(artist.query) ? 'default' : 'outline'}
+                        className={cn(
+                          "cursor-pointer transition-colors px-2 py-0.5 text-xs",
+                          selectedTags.has(artist.query) 
+                            ? "bg-primary text-primary-foreground" 
+                            : "hover:bg-primary hover:text-primary-foreground border-primary/40"
+                        )}
+                        onClick={() => toggleTag(artist.query)}
                         title={artist.subtypes}
                       >
                         {artist.name}
@@ -494,19 +567,21 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
                   </div>
                 </div>
 
-                {/* More Artists */}
+                {/* More Artists - Multi-Select */}
                 <div className="space-y-2">
                   <span className="text-xs text-muted-foreground">More masters:</span>
                   <div className="flex flex-wrap gap-1.5">
                     {MORE_ARTISTS.map(artist => (
                       <Badge
                         key={artist.query}
-                        variant="outline"
-                        className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors px-2 py-0.5 text-xs"
-                        onClick={() => {
-                          setMuseumQuery(artist.name);
-                          searchMuseums(artist.query);
-                        }}
+                        variant={selectedTags.has(artist.query) ? 'default' : 'outline'}
+                        className={cn(
+                          "cursor-pointer transition-colors px-2 py-0.5 text-xs",
+                          selectedTags.has(artist.query) 
+                            ? "bg-primary text-primary-foreground" 
+                            : "hover:bg-accent hover:text-accent-foreground"
+                        )}
+                        onClick={() => toggleTag(artist.query)}
                         title={artist.movement}
                       >
                         {artist.name}
