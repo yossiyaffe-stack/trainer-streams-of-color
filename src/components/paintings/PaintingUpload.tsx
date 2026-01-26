@@ -434,8 +434,7 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
         </div>
         
         <Card className="p-4 border-accent/30 bg-accent/5">
-          <Card className="p-4 border-accent/30 bg-accent/5">
-            <div className="space-y-4">
+          <div className="space-y-4">
               {/* Museum Search */}
               <div className="flex gap-3">
                 <div className="flex-1 relative">
@@ -632,8 +631,8 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
                       </div>
                     </div>
 
-                    <ScrollArea className="h-[300px]">
-                      <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+                    <ScrollArea className="h-[600px]">
+                      <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 pr-4">
                         {museumResults.map(artwork => (
                           <Card
                             key={artwork.id}
@@ -673,7 +672,7 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
                                 variant="secondary" 
                                 className="absolute bottom-1 left-1 text-[9px] px-1 py-0 bg-background/80"
                               >
-                                {artwork.museum.includes('Chicago') ? 'AIC' : 'Met'}
+                                {artwork.museum.includes('Chicago') ? 'AIC' : artwork.museum.includes('Cleveland') ? 'CMA' : 'Met'}
                               </Badge>
                             </div>
                           </Card>
@@ -699,8 +698,7 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
                   <p className="text-sm">Search museum collections above or click a quick tag</p>
                 </div>
               )}
-            </div>
-          </Card>
+          </div>
         </Card>
       </div>
 
