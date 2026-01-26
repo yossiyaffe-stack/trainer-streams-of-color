@@ -608,27 +608,10 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
                           {museumResults.length} artworks found • {selectedMuseumIds.size} selected
                         </span>
                       </div>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => setMuseumResults([])}>
-                          <X className="w-4 h-4 mr-1" />
-                          Clear
-                        </Button>
-                        {selectedMuseumIds.size > 0 && (
-                          <Button onClick={importSelected} disabled={importing}>
-                            {importing ? (
-                              <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Importing...
-                              </>
-                            ) : (
-                              <>
-                                <Download className="w-4 h-4 mr-2" />
-                                Import {selectedMuseumIds.size} to Gallery
-                              </>
-                            )}
-                          </Button>
-                        )}
-                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => setMuseumResults([])}>
+                        <X className="w-4 h-4 mr-1" />
+                        Clear
+                      </Button>
                     </div>
 
                     <ScrollArea className="h-[600px]">
@@ -679,6 +662,39 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
                         ))}
                       </div>
                     </ScrollArea>
+
+                    {/* Prominent Save to Gallery Button */}
+                    {selectedMuseumIds.size > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="sticky bottom-0 bg-primary/10 border-2 border-primary rounded-xl p-4 text-center"
+                      >
+                        <div className="flex items-center justify-center gap-4">
+                          <span className="font-semibold text-primary">
+                            ✓ {selectedMuseumIds.size} painting{selectedMuseumIds.size > 1 ? 's' : ''} selected
+                          </span>
+                          <Button 
+                            size="lg" 
+                            onClick={importSelected} 
+                            disabled={importing}
+                            className="bg-primary hover:bg-primary/90"
+                          >
+                            {importing ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Saving to Gallery...
+                              </>
+                            ) : (
+                              <>
+                                <Save className="w-4 h-4 mr-2" />
+                                Save to Gallery
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </motion.div>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
