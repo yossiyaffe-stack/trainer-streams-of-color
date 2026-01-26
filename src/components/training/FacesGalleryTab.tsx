@@ -16,7 +16,8 @@ import {
   Users, 
   ChevronLeft, 
   ChevronRight,
-  Eye
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -59,6 +60,8 @@ export function FacesGalleryTab() {
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [offset, setOffset] = useState(0);
+  const [analyzingIds, setAnalyzingIds] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const limit = 40;
 
   // Filter states
@@ -179,6 +182,79 @@ export function FacesGalleryTab() {
     setOffset(0);
   };
 
+  const analyzeFace = async (face: FaceImage) => {
+    setAnalyzingIds(prev => new Set(prev).add(face.id));
+    
+    try {
+      const imageUrl = getImageUrl(face);
+      
+      const { data, error } = await supabase.functions.invoke('analyze-face', {
+        body: { imageUrl, faceImageId: face.id }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Analysis Complete',
+        description: `Predicted: ${data.analysis?.predicted_subtype || 'Unknown'} (${data.analysis?.confidence || 0}% confidence)`,
+      });
+
+      // Refresh to show updated data
+      fetchFaces();
+    } catch (err) {
+      console.error('Analysis error:', err);
+      toast({
+        title: 'Analysis Failed',
+        description: err instanceof Error ? err.message : 'Could not analyze face',
+        variant: 'destructive',
+      });
+    } finally {
+      setAnalyzingIds(prev => {
+        const next = new Set(prev);
+        next.delete(face.id);
+        return next;
+      });
+    }
+  };
+
+  const analyzeSelected = async () => {
+    const toAnalyze = filteredFaces.filter(f => selectedIds.has(f.id));
+    for (const face of toAnalyze) {
+      await analyzeFace(face);
+    }
+    setSelectedIds(new Set());
+  };
+
+  const analyzeAllUnlabeled = async () => {
+    const unlabeled = filteredFaces.filter(f => 
+      !f.color_label?.label_status || f.color_label.label_status === 'unlabeled'
+    );
+    
+    if (unlabeled.length === 0) {
+      toast({ title: 'No unlabeled faces', description: 'All visible faces have been analyzed' });
+      return;
+    }
+
+    toast({ title: 'Starting bulk analysis', description: `Analyzing ${unlabeled.length} faces...` });
+    
+    for (const face of unlabeled) {
+      await analyzeFace(face);
+    }
+  };
+
+  const toggleSelection = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
   const getImageUrl = (face: FaceImage) => {
     // If it's a URL, return directly
     if (face.storage_path.startsWith('http')) {
@@ -206,6 +282,40 @@ export function FacesGalleryTab() {
 
   return (
     <div className="space-y-6">
+      {/* Analyze Actions Bar */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <Button
+          onClick={analyzeAllUnlabeled}
+          disabled={analyzingIds.size > 0}
+          className="gap-2"
+        >
+          {analyzingIds.size > 0 ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Sparkles className="w-4 h-4" />
+          )}
+          Analyze All Unlabeled
+        </Button>
+        
+        {selectedIds.size > 0 && (
+          <Button
+            variant="outline"
+            onClick={analyzeSelected}
+            disabled={analyzingIds.size > 0}
+            className="gap-2"
+          >
+            <Sparkles className="w-4 h-4" />
+            Analyze Selected ({selectedIds.size})
+          </Button>
+        )}
+        
+        {analyzingIds.size > 0 && (
+          <span className="text-sm text-muted-foreground">
+            Analyzing {analyzingIds.size} face(s)...
+          </span>
+        )}
+      </div>
+
       {/* Filter Toolbar */}
       <FacesFilterToolbar
         searchQuery={searchQuery}
@@ -243,68 +353,114 @@ export function FacesGalleryTab() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
-          {filteredFaces.map((face, index) => (
-            <motion.div
-              key={face.id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.02 }}
-              className="group relative aspect-square rounded-lg overflow-hidden border-2 border-border hover:border-primary cursor-pointer transition-all"
-            >
-              <img
-                src={getImageUrl(face)}
-                alt={`Face ${face.source_id || face.id}`}
-                className="w-full h-full object-cover"
-                loading="lazy"
-              />
+          {filteredFaces.map((face, index) => {
+            const isAnalyzing = analyzingIds.has(face.id);
+            const isSelected = selectedIds.has(face.id);
+            const isUnlabeled = !face.color_label?.label_status || face.color_label.label_status === 'unlabeled';
+            
+            return (
+              <motion.div
+                key={face.id}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.02 }}
+                onClick={(e) => toggleSelection(face.id, e)}
+                className={cn(
+                  "group relative aspect-square rounded-lg overflow-hidden border-2 cursor-pointer transition-all",
+                  isSelected ? "border-primary ring-2 ring-primary/30" :
+                  isAnalyzing ? "border-warning animate-pulse" :
+                  "border-border hover:border-primary"
+                )}
+              >
+                <img
+                  src={getImageUrl(face)}
+                  alt={`Face ${face.source_id || face.id}`}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
 
-              {/* Hover overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                <div className="absolute bottom-0 left-0 right-0 p-2">
-                  <p className="text-white text-xs truncate font-medium">
-                    {face.color_label?.confirmed_subtype || face.color_label?.ai_predicted_subtype || 'Unlabeled'}
-                  </p>
-                  {face.color_label?.ai_confidence && (
-                    <p className="text-white/70 text-xs">
-                      {Math.round(face.color_label.ai_confidence)}% confidence
+                {/* Analyzing overlay */}
+                {isAnalyzing && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 text-white animate-spin" />
+                  </div>
+                )}
+
+                {/* Hover overlay with analyze button */}
+                <div className={cn(
+                  "absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent transition-opacity",
+                  isAnalyzing ? "opacity-0" : "opacity-0 group-hover:opacity-100"
+                )}>
+                  <div className="absolute bottom-0 left-0 right-0 p-2">
+                    <p className="text-white text-xs truncate font-medium">
+                      {face.color_label?.confirmed_subtype || face.color_label?.ai_predicted_subtype || 'Unlabeled'}
                     </p>
+                    {face.color_label?.ai_confidence && (
+                      <p className="text-white/70 text-xs">
+                        {Math.round(face.color_label.ai_confidence)}% confidence
+                      </p>
+                    )}
+                  </div>
+                  
+                  {/* Quick analyze button */}
+                  {isUnlabeled && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 gap-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        analyzeFace(face);
+                      }}
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      Analyze
+                    </Button>
                   )}
                 </div>
-              </div>
 
-              {/* Season badge */}
-              {face.color_label?.confirmed_season && (
-                <Badge 
-                  className={cn(
-                    'absolute top-1 right-1 text-[10px] px-1.5 py-0.5',
-                    SEASON_COLORS[face.color_label.confirmed_season] || 'bg-muted'
-                  )}
-                >
-                  {face.color_label.confirmed_season}
-                </Badge>
-              )}
-
-              {/* Status indicator */}
-              {face.color_label?.label_status && face.color_label.label_status !== 'unlabeled' && (
+                {/* Selection checkbox */}
                 <div className={cn(
-                  'absolute top-1 left-1 w-2 h-2 rounded-full',
-                  face.color_label.label_status === 'nechama_verified' ? 'bg-success' :
-                  face.color_label.label_status === 'expert_verified' ? 'bg-success/80' :
-                  face.color_label.label_status === 'ai_predicted' ? 'bg-primary' :
-                  face.color_label.label_status === 'needs_review' ? 'bg-warning' :
-                  'bg-muted-foreground'
-                )} />
-              )}
+                  "absolute top-1 left-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
+                  isSelected ? "bg-primary border-primary text-primary-foreground" : "border-white/50 bg-black/30 opacity-0 group-hover:opacity-100"
+                )}>
+                  {isSelected && <span className="text-xs">✓</span>}
+                </div>
 
-              {/* Source badge */}
-              <Badge 
-                variant="secondary" 
-                className="absolute bottom-1 right-1 text-[10px] px-1.5 py-0.5 bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                {face.source}
-              </Badge>
-            </motion.div>
-          ))}
+                {/* Season badge */}
+                {face.color_label?.confirmed_season && (
+                  <Badge 
+                    className={cn(
+                      'absolute top-1 right-1 text-[10px] px-1.5 py-0.5',
+                      SEASON_COLORS[face.color_label.confirmed_season] || 'bg-muted'
+                    )}
+                  >
+                    {face.color_label.confirmed_season}
+                  </Badge>
+                )}
+
+                {/* Status indicator */}
+                {face.color_label?.label_status && face.color_label.label_status !== 'unlabeled' && (
+                  <div className={cn(
+                    'absolute bottom-1 left-1 w-2 h-2 rounded-full',
+                    face.color_label.label_status === 'nechama_verified' ? 'bg-success' :
+                    face.color_label.label_status === 'expert_verified' ? 'bg-success/80' :
+                    face.color_label.label_status === 'ai_predicted' ? 'bg-primary' :
+                    face.color_label.label_status === 'needs_review' ? 'bg-warning' :
+                    'bg-muted-foreground'
+                  )} />
+                )}
+
+                {/* Source badge */}
+                <Badge 
+                  variant="secondary" 
+                  className="absolute bottom-1 right-1 text-[10px] px-1.5 py-0.5 bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  {face.source}
+                </Badge>
+              </motion.div>
+            );
+          })}
         </motion.div>
       )}
 
