@@ -17,6 +17,7 @@ import { PaintingUploadTab } from '@/components/hub/paintings/PaintingUploadTab'
 import { PaintingGridTab } from '@/components/hub/paintings/PaintingGridTab';
 import { PaintingListTab } from '@/components/hub/paintings/PaintingListTab';
 import { PaintingBySubtypeTab } from '@/components/hub/paintings/PaintingBySubtypeTab';
+import { MuseumImportTab } from '@/components/hub/paintings/MuseumImportTab';
 
 function PhotoSection() {
   const { activeTab } = useHub();
@@ -38,6 +39,7 @@ function PaintingSection() {
   return (
     <>
       {activeTab === 'upload' && <PaintingUploadTab />}
+      {activeTab === 'museum' && <MuseumImportTab />}
       {activeTab === 'grid' && <PaintingGridTab />}
       {activeTab === 'list' && <PaintingListTab />}
       {activeTab === 'bySubtype' && <PaintingBySubtypeTab />}
