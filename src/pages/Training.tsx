@@ -89,7 +89,8 @@ export default function Training() {
             className="mb-8"
           >
             <h1 className="font-serif text-4xl md:text-5xl font-bold mb-4">
-              Training Mode
+              Faces
+              
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl">
               Upload photos, review AI predictions, and correct results to improve the model's accuracy.
