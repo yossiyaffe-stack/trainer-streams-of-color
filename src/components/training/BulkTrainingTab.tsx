@@ -1,10 +1,12 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { BulkPhoto, BulkTrainingStats, FilterType, SortType } from '@/types/training';
 import { Subtype, SAMPLE_SUBTYPES } from '@/data/subtypes';
 import { BulkPhotoRow } from './BulkPhotoRow';
 import { ImportExportPanel } from './ImportExportPanel';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import {
   Select,
@@ -41,8 +43,35 @@ export function BulkTrainingTab() {
   const [sortBy, setSortBy] = useState<SortType>('confidence');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showImportExport, setShowImportExport] = useState(false);
+  const [allSubtypes, setAllSubtypes] = useState<Subtype[]>(SAMPLE_SUBTYPES);
 
-  const allSubtypes = SAMPLE_SUBTYPES;
+  // Fetch active subtypes from database
+  useEffect(() => {
+    async function loadSubtypes() {
+      const { data, error } = await supabase
+        .from('subtypes')
+        .select('id, name, season, slug')
+        .eq('is_active', true)
+        .order('season', { ascending: true });
+      
+      if (!error && data) {
+        // Map to Subtype with required fields populated with defaults
+        const mapped: Subtype[] = data.map(s => ({
+          id: s.id,
+          name: s.name,
+          season: s.season as 'spring' | 'summer' | 'autumn' | 'winter',
+          palette: {},
+          colorCombinations: [],
+          paletteEffects: [],
+          fabrics: [],
+          prints: [],
+          jewelry: {},
+        }));
+        setAllSubtypes(mapped);
+      }
+    }
+    loadSubtypes();
+  }, []);
 
   // Handle bulk file upload
   const handleBulkUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -67,11 +96,13 @@ export function BulkTrainingTab() {
     setPhotos(prev => [...prev, ...newPhotos]);
   }, []);
 
-  // Analyze all pending photos
+  // Analyze all pending photos using real AI
   const analyzeAll = async () => {
     setAnalyzing(true);
     
     const pendingPhotos = photos.filter(p => p.status === 'pending');
+    let successCount = 0;
+    let errorCount = 0;
     
     for (let i = 0; i < pendingPhotos.length; i++) {
       const photo = pendingPhotos[i];
@@ -81,38 +112,101 @@ export function BulkTrainingTab() {
       ));
 
       try {
-        // MOCK RESULT - In production this would call the AI edge function
-        const mockResult = {
-          prediction: allSubtypes[Math.floor(Math.random() * allSubtypes.length)],
-          confidence: Math.floor(Math.random() * 40) + 50,
-          alternatives: [
-            allSubtypes[Math.floor(Math.random() * allSubtypes.length)],
-            allSubtypes[Math.floor(Math.random() * allSubtypes.length)],
-          ],
-          features: {
-            undertone: (['warm', 'cool', 'neutral'] as const)[Math.floor(Math.random() * 3)],
-            depth: (['light', 'medium', 'deep'] as const)[Math.floor(Math.random() * 3)],
-            contrast: (['low', 'medium', 'high'] as const)[Math.floor(Math.random() * 3)],
-            eyeColor: 'Emerald',
-            hairColor: 'Chocolate Brown'
-          }
-        };
+        // Upload to storage first
+        const filename = `training/${Date.now()}_${photo.filename}`;
+        const { error: uploadError } = await supabase.storage
+          .from('face-images')
+          .upload(filename, photo.file);
 
-        await new Promise(resolve => setTimeout(resolve, 500));
+        if (uploadError) throw uploadError;
+
+        // Create face_images record
+        const { data: imageRecord, error: dbError } = await supabase
+          .from('face_images')
+          .insert({
+            storage_path: filename,
+            original_filename: photo.filename,
+            source: 'training_upload',
+            file_size_bytes: photo.file.size,
+          })
+          .select()
+          .single();
+
+        if (dbError) throw dbError;
+
+        // Get public URL for analysis
+        const { data: publicUrl } = supabase.storage
+          .from('face-images')
+          .getPublicUrl(filename);
+
+        // Call the real AI analysis edge function
+        const { data: analysisResult, error: analyzeError } = await supabase.functions.invoke('analyze-face', {
+          body: { 
+            faceImageId: imageRecord.id,
+            imageUrl: publicUrl.publicUrl,
+          },
+        });
+
+        if (analyzeError) throw analyzeError;
+
+        const analysis = analysisResult?.analysis;
+        
+        // Map AI result to subtype
+        const predictedSubtype = allSubtypes.find(s => 
+          s.name.toLowerCase().includes(analysis?.predicted_subtype?.toLowerCase() || '') ||
+          analysis?.predicted_subtype?.toLowerCase().includes(s.name.toLowerCase())
+        ) || (analysis?.predicted_subtype ? {
+          id: `ai-${Date.now()}`,
+          name: analysis.predicted_subtype,
+          season: (analysis.predicted_season || 'autumn') as 'spring' | 'summer' | 'autumn' | 'winter',
+          palette: {},
+          colorCombinations: [],
+          paletteEffects: [],
+          fabrics: [],
+          prints: [],
+          jewelry: {},
+        } : null);
+
+        // Map alternatives
+        const alternativeSubtypes: Subtype[] = (analysis?.alternatives || []).map((alt: any) => {
+          const found = allSubtypes.find(s => 
+            s.name.toLowerCase().includes(alt.subtype?.toLowerCase() || '')
+          );
+          return found || { 
+            id: `alt-${Date.now()}`, 
+            name: alt.subtype, 
+            season: 'autumn' as const,
+            palette: {},
+            colorCombinations: [],
+            paletteEffects: [],
+            fabrics: [],
+            prints: [],
+            jewelry: {},
+          };
+        });
 
         setPhotos(prev => prev.map(p => 
           p.id === photo.id ? {
             ...p,
             status: 'analyzed',
-            aiPrediction: mockResult.prediction,
-            aiConfidence: mockResult.confidence,
-            aiAlternatives: mockResult.alternatives,
-            extractedFeatures: mockResult.features,
-            isNewSubtype: mockResult.confidence < 50
+            aiPrediction: predictedSubtype,
+            aiConfidence: analysis?.confidence || 0,
+            aiAlternatives: alternativeSubtypes,
+            extractedFeatures: {
+              undertone: analysis?.skin?.undertone || 'neutral',
+              depth: analysis?.depth?.level?.replace('-', '') as any || 'medium',
+              contrast: analysis?.contrast?.level?.replace('-', '') as any || 'medium',
+              eyeColor: analysis?.eyes?.color_name,
+              hairColor: analysis?.hair?.color_name
+            },
+            isNewSubtype: (analysis?.confidence || 0) < 50
           } : p
         ));
+        
+        successCount++;
       } catch (error) {
         console.error('Analysis failed:', error);
+        errorCount++;
         setPhotos(prev => prev.map(p => 
           p.id === photo.id ? { ...p, status: 'error' } : p
         ));
@@ -120,6 +214,13 @@ export function BulkTrainingTab() {
     }
 
     setAnalyzing(false);
+    
+    if (successCount > 0) {
+      toast.success(`Analyzed ${successCount} photo${successCount !== 1 ? 's' : ''}`);
+    }
+    if (errorCount > 0) {
+      toast.error(`${errorCount} photo${errorCount !== 1 ? 's' : ''} failed to analyze`);
+    }
   };
 
   const confirmCorrect = (photoId: string) => {
