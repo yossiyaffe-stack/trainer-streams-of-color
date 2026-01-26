@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { X, Sparkles, Eye, Palette, User, Sun, Moon, Loader2, Check, Trash2, Save } from 'lucide-react';
+import { X, Sparkles, Eye, Palette, User, Sun, Moon, Loader2, Check, Trash2, Save, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -58,6 +59,9 @@ interface ColorLabel {
   depth_value?: number | null;
   ai_reasoning?: string | null;
   ai_alternatives?: Array<{ subtype: string; confidence: number }> | null;
+  had_disagreement?: boolean | null;
+  disagreement_notes?: string | null;
+  notes?: string | null;
 }
 
 interface FaceImage {
@@ -117,6 +121,8 @@ interface EditableFields {
   depth: string;
   confirmed_season: string;
   confirmed_subtype: string;
+  disagreement_notes: string;
+  notes: string;
 }
 
 export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, isAnalyzing }: FaceDetailModalProps) {
@@ -154,6 +160,8 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
     depth: label?.depth || '',
     confirmed_season: label?.confirmed_season || '',
     confirmed_subtype: label?.confirmed_subtype || '',
+    disagreement_notes: label?.disagreement_notes || '',
+    notes: label?.notes || '',
   });
 
   // Find matching Nechama subtype based on AI prediction
@@ -196,6 +204,11 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
       type ContrastType = typeof CONTRAST_OPTIONS[number];
       type DepthType = typeof DEPTH_OPTIONS[number];
 
+      // Check if user is disagreeing with AI
+      const isDisagreement = label?.ai_predicted_subtype && 
+        editFields.confirmed_subtype && 
+        editFields.confirmed_subtype !== label.ai_predicted_subtype;
+
       const updateData = {
         skin_hex: editFields.skin_hex || null,
         skin_tone_name: (editFields.skin_tone_name || null) as SkinToneName | null,
@@ -208,6 +221,9 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
         depth: (editFields.depth || null) as DepthType | null,
         confirmed_season: (editFields.confirmed_season || null) as SeasonType | null,
         confirmed_subtype: editFields.confirmed_subtype || null,
+        had_disagreement: isDisagreement,
+        disagreement_notes: editFields.disagreement_notes || null,
+        notes: editFields.notes || null,
         label_status: 'manually_labeled' as const,
         labeled_at: new Date().toISOString(),
       };
@@ -657,6 +673,47 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              {/* Expert Override / Disagreement Notes */}
+              {label?.ai_predicted_subtype && (
+                <div className="space-y-3 p-4 bg-warning/10 border border-warning/30 rounded-lg">
+                  <h4 className="font-medium flex items-center gap-2 text-warning">
+                    <MessageSquare className="w-4 h-4" />
+                    Override AI Prediction
+                  </h4>
+                  <p className="text-sm text-muted-foreground">
+                    AI predicted: <strong>{label.ai_predicted_subtype}</strong>
+                    {editFields.confirmed_subtype && editFields.confirmed_subtype !== label.ai_predicted_subtype && (
+                      <span className="text-warning ml-2">
+                        → You selected: <strong>{editFields.confirmed_subtype}</strong>
+                      </span>
+                    )}
+                  </p>
+                  <div className="space-y-2">
+                    <Label className="text-sm">Why do you disagree? (helps train the AI)</Label>
+                    <Textarea
+                      value={editFields.disagreement_notes}
+                      onChange={(e) => handleFieldChange('disagreement_notes', e.target.value)}
+                      placeholder="Explain why this person belongs to a different season/subtype. E.g., 'The undertone appears warmer than detected, hair has golden highlights suggesting Autumn not Winter...'"
+                      className="min-h-[80px] text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* General Notes */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                  Notes
+                </Label>
+                <Textarea
+                  value={editFields.notes}
+                  onChange={(e) => handleFieldChange('notes', e.target.value)}
+                  placeholder="Any additional observations about this face..."
+                  className="min-h-[60px] text-sm"
+                />
               </div>
 
               {/* Actions */}
