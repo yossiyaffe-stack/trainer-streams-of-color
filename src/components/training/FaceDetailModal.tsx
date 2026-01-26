@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, Sparkles, Eye, Palette, User, Sun, Moon, Loader2, Check, Trash2, Edit3, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Constants } from '@/integrations/supabase/types';
+
+interface SubtypeOption {
+  id: string;
+  name: string;
+  season: string;
+  slug: string;
+}
 
 interface ColorLabel {
   confirmed_season: string | null;
@@ -117,7 +124,22 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
   const [deleting, setDeleting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [subtypes, setSubtypes] = useState<SubtypeOption[]>([]);
   const label = face.color_label;
+
+  // Fetch Nechama's subtypes from database
+  useEffect(() => {
+    async function fetchSubtypes() {
+      const { data } = await supabase
+        .from('subtypes')
+        .select('id, name, season, slug')
+        .eq('is_active', true)
+        .order('season')
+        .order('display_order');
+      if (data) setSubtypes(data);
+    }
+    fetchSubtypes();
+  }, []);
 
   // Initialize editable fields from current label
   const [editFields, setEditFields] = useState<EditableFields>({
@@ -133,6 +155,11 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
     confirmed_season: label?.confirmed_season || '',
     confirmed_subtype: label?.confirmed_subtype || label?.ai_predicted_subtype || '',
   });
+
+  // Filter subtypes by selected season
+  const filteredSubtypes = editFields.confirmed_season 
+    ? subtypes.filter(s => s.season.toLowerCase() === editFields.confirmed_season.toLowerCase())
+    : subtypes;
 
   const handleFieldChange = (field: keyof EditableFields, value: string) => {
     setEditFields(prev => ({ ...prev, [field]: value }));
@@ -352,12 +379,31 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Subtype</Label>
-                    <Input 
-                      value={editFields.confirmed_subtype}
-                      onChange={(e) => handleFieldChange('confirmed_subtype', e.target.value)}
-                      placeholder="e.g. True Spring"
-                    />
+                    <Label>Subtype (Nechama's Names)</Label>
+                    <Select 
+                      value={editFields.confirmed_subtype} 
+                      onValueChange={(v) => handleFieldChange('confirmed_subtype', v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select subtype" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredSubtypes.length > 0 ? (
+                          filteredSubtypes.map(subtype => (
+                            <SelectItem key={subtype.id} value={subtype.name}>
+                              {subtype.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          subtypes.map(subtype => (
+                            <SelectItem key={subtype.id} value={subtype.name}>
+                              <span className="capitalize text-muted-foreground text-xs mr-2">{subtype.season}</span>
+                              {subtype.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
