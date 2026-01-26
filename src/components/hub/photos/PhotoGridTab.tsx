@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 
 export function PhotoGridTab() {
   const { 
-    photos, subtypes, confirmPhoto, confirmPhotoCorrect,
+    photos, subtypes, confirmPhoto, confirmPhotoCorrect, deletePhotos,
     selectedPhotoIds, togglePhotoSelection, selectAllPhotos, clearPhotoSelection, isPhotoSelected
   } = useHub();
   const [filter, setFilter] = useState<'analyzed' | 'confirmed' | 'all'>('analyzed');
@@ -96,6 +96,7 @@ export function PhotoGridTab() {
             <div 
               key={photo.id} 
               className={cn(
+                'group',
                 'relative rounded-lg overflow-hidden cursor-pointer hover:scale-105 transition-transform border-2',
                 isPhotoSelected(photo.id)
                   ? 'ring-2 ring-primary ring-offset-2'
@@ -108,7 +109,7 @@ export function PhotoGridTab() {
                       : (photo.aiConfidence ?? 0) >= 50 
                         ? 'border-warning/50' 
                         : 'border-destructive/50'
-              )}
+            )}
             >
               {/* Selection checkbox */}
               <div 
@@ -123,6 +124,16 @@ export function PhotoGridTab() {
                   className="bg-background/80"
                 />
               </div>
+              {/* Delete button */}
+              <button
+                className="absolute top-1 right-1 z-10 w-5 h-5 rounded-full bg-black/60 hover:bg-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deletePhotos([photo.id]);
+                }}
+              >
+                <X className="w-3 h-3 text-white" />
+              </button>
               <img 
                 src={photo.preview} 
                 alt="" 
