@@ -9,7 +9,7 @@ const navLinks = [
   { path: '/hub', label: 'Hub' },
   { path: '/explore', label: 'Explore' },
   { path: '/paintings', label: 'Paintings' },
-  { path: '/training', label: 'Training' },
+  { path: '/faces', label: 'Faces' },
 ];
 
 export function Header() {
@@ -53,7 +53,7 @@ export function Header() {
           {/* CTA */}
           <div className="hidden md:flex items-center gap-3">
             <Button variant="outline" size="sm" asChild>
-              <Link to="/training">Start Training</Link>
+              <Link to="/faces">Start Faces</Link>
             </Button>
           </div>
 
