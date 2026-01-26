@@ -152,19 +152,16 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
     }
 
     try {
-      // Also add to palette when classifying with a subtype
-      const currentTags = painting.tags || [];
-      const updatedTags = currentTags.includes('Palette Painting') 
-        ? currentTags 
-        : [...currentTags, 'Palette Painting'];
-
+      const newSeason = subtype.season.charAt(0).toUpperCase() + subtype.season.slice(1);
+      
+      // Don't send tags - let the database trigger regenerate them
+      // The trigger will auto-include the new suggested_season
       const { error } = await supabase
         .from('paintings')
         .update({
           palette_effect: subtype.name,
-          suggested_season: subtype.season.charAt(0).toUpperCase() + subtype.season.slice(1),
+          suggested_season: newSeason,
           status: 'palette',
-          tags: updatedTags,
         })
         .eq('id', painting.id);
 
@@ -173,9 +170,8 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
       setPainting(prev => ({
         ...prev,
         palette_effect: subtype.name,
-        suggested_season: subtype.season.charAt(0).toUpperCase() + subtype.season.slice(1),
+        suggested_season: newSeason,
         status: 'palette',
-        tags: updatedTags,
       }));
 
       setIsPalettePainting(true);
