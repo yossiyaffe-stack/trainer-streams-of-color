@@ -99,6 +99,23 @@ export default function Training() {
             </p>
           </motion.div>
 
+          {/* Import Datasets Big Button */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="mb-8"
+          >
+            <Button
+              onClick={() => setActiveTab('import')}
+              size="lg"
+              className="w-full md:w-auto h-16 px-8 text-lg gap-3 bg-primary hover:bg-primary/90 shadow-lg"
+            >
+              <Database className="w-6 h-6" />
+              Import Datasets from Hugging Face
+            </Button>
+          </motion.div>
+
           {/* Stats Overview */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
