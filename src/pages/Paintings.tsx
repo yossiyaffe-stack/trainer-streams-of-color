@@ -7,8 +7,9 @@ import { PaintingUpload } from '@/components/paintings/PaintingUpload';
 import { PaintingGrid } from '@/components/paintings/PaintingGrid';
 import { MuseumPaintingsGrid } from '@/components/paintings/MuseumPaintingsGrid';
 import { MuseumImportTab } from '@/components/hub/paintings/MuseumImportTab';
+import { PaletteGalleryTab } from '@/components/paintings/PaletteGalleryTab';
 import { HubProvider } from '@/contexts/HubContext';
-import { Upload, Grid3X3, Library, Building2, Image } from 'lucide-react';
+import { Upload, Grid3X3, Library, Building2, Image, Star } from 'lucide-react';
 
 export default function Paintings() {
   const [activeTab, setActiveTab] = useState('upload');
@@ -40,7 +41,7 @@ export default function Paintings() {
                     </div>
                   </div>
                   
-                  <TabsList className="grid grid-cols-4 h-12 bg-card border-2 border-primary/30 shadow-lg rounded-xl p-1">
+                  <TabsList className="grid grid-cols-5 h-12 bg-card border-2 border-primary/30 shadow-lg rounded-xl p-1">
                     <TabsTrigger 
                       value="upload" 
                       className="flex items-center gap-2 px-3 font-semibold rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
@@ -67,7 +68,14 @@ export default function Paintings() {
                       className="flex items-center gap-2 px-3 font-semibold rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
                     >
                       <Grid3X3 className="w-4 h-4" />
-                      <span className="hidden sm:inline">My Gallery</span>
+                      <span className="hidden sm:inline">Gallery</span>
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="palette" 
+                      className="flex items-center gap-2 px-3 font-semibold rounded-lg data-[state=active]:bg-amber-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+                    >
+                      <Star className="w-4 h-4" />
+                      <span className="hidden sm:inline">Palette</span>
                     </TabsTrigger>
                   </TabsList>
                 </div>
@@ -97,6 +105,10 @@ export default function Paintings() {
 
                 <TabsContent value="gallery" className="mt-0">
                   <PaintingGrid key={refreshKey} />
+                </TabsContent>
+
+                <TabsContent value="palette" className="mt-0">
+                  <PaletteGalleryTab />
                 </TabsContent>
               </Tabs>
             </motion.div>
