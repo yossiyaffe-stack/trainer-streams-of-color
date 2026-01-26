@@ -10,6 +10,7 @@ import { PhotoGridView } from '@/components/training/PhotoGridView';
 import { ProgressDashboard } from '@/components/training/ProgressDashboard';
 import { BatchReanalysis } from '@/components/training/BatchReanalysis';
 import { SubtypeManager } from '@/components/training/SubtypeManager';
+import { HuggingFaceImport } from '@/components/training/HuggingFaceImport';
 import { SAMPLE_SUBTYPES } from '@/data/subtypes';
 import { BulkPhoto } from '@/types/training';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -25,7 +26,8 @@ import {
   Table2,
   LayoutGrid,
   FlaskConical,
-  Palette
+  Palette,
+  Database
 } from 'lucide-react';
 
 export default function Training() {
@@ -141,6 +143,10 @@ export default function Training() {
                 <Palette className="w-4 h-4" />
                 Manage Subtypes
               </TabsTrigger>
+              <TabsTrigger value="import" className="gap-2 data-[state=active]:bg-background">
+                <Database className="w-4 h-4" />
+                Import Datasets
+              </TabsTrigger>
             </TabsList>
 
             {/* Analyze Photo Tab */}
@@ -248,6 +254,17 @@ export default function Training() {
                 subtypes={SAMPLE_SUBTYPES}
                 modelVersion={{ version: '1.0', trainedOn: trainingPhotos.filter(p => p.status === 'confirmed').length }}
               />
+            </TabsContent>
+
+            {/* Import from Hugging Face Tab */}
+            <TabsContent value="import" className="space-y-6">
+              <div className="mb-6">
+                <h2 className="font-serif text-2xl font-semibold mb-2">Import from Hugging Face</h2>
+                <p className="text-muted-foreground">
+                  Browse and import face images from popular datasets like CelebA-HQ, FFHQ, and LFW.
+                </p>
+              </div>
+              <HuggingFaceImport />
             </TabsContent>
           </Tabs>
         </div>
