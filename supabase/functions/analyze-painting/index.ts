@@ -5,7 +5,119 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const PAINTING_ANALYSIS_PROMPT = `You are analyzing a painting for a personal color analysis system based on Nechama Yaffe's methodology. 
+type AnalysisOption = 
+  | 'color_palette' 
+  | 'costume' 
+  | 'facial_features' 
+  | 'color_scheme' 
+  | 'seasons' 
+  | 'jewelry' 
+  | 'clothing_cut';
+
+const buildPrompt = (options: AnalysisOption[]): string => {
+  const sections: string[] = [];
+  
+  // Base intro
+  sections.push(`You are analyzing a painting for a personal color analysis system based on Nechama Yaffe's methodology.
+Analyze this painting and extract the requested elements. Use Nechama's rich, evocative vocabulary.
+
+Respond with JSON containing ONLY the sections requested below:`);
+
+  // Always include basic info
+  sections.push(`
+"title_suggestion": "A poetic title for this painting in Nechama's style",
+"artist_detected": "Artist name if recognizable, or 'Unknown' / art movement style",
+"era_detected": "Time period of the painting or fashion depicted",`);
+
+  if (options.includes('color_palette')) {
+    sections.push(`
+"colors": {
+  "dominant": ["List 2-3 dominant colors with Nechama-style names (e.g., 'Burgundy Wine', 'Dusty Rose')"],
+  "accent": ["Accent colors"],
+  "hex_values": ["Approximate hex codes for main colors"],
+  "warmth": "warm or cool or neutral"
+},`);
+  }
+
+  if (options.includes('costume')) {
+    sections.push(`
+"fabrics": {
+  "primary": ["Main fabric(s) - Velvet, Silk, Satin, Brocade, Lace, Chiffon, etc."],
+  "secondary": ["Other fabrics present"],
+  "texture_notes": "Description of fabric textures and how light plays on them"
+},`);
+  }
+
+  if (options.includes('facial_features')) {
+    sections.push(`
+"facial_analysis": {
+  "skin_tone": "Skin tone description (e.g., 'Porcelain', 'Warm Ivory', 'Golden Beige')",
+  "skin_undertone": "warm or cool or neutral",
+  "eye_color": "Eye color description with depth",
+  "hair_color": "Hair color with undertones",
+  "contrast_level": "low, medium, or high contrast between features",
+  "face_shape": "Oval, Heart, Square, Round, etc. if visible",
+  "coloring_notes": "Overall impression of the person's natural coloring"
+},`);
+  }
+
+  if (options.includes('color_scheme')) {
+    sections.push(`
+"color_scheme": {
+  "harmony_type": "Complementary, Analogous, Triadic, Monochromatic, etc.",
+  "mood": "The emotional quality of the color scheme",
+  "palette_effect": "A Nechama-style name that captures the essence (e.g., 'Renaissance Queen', 'French Court')",
+  "best_for_season": "Which seasonal type would wear these colors best"
+},`);
+  }
+
+  if (options.includes('seasons')) {
+    sections.push(`
+"seasonal_analysis": {
+  "primary_season": "Spring or Summer or Autumn or Winter",
+  "secondary_season": "If mixed, what's the secondary influence",
+  "subtype_suggestion": "Specific subtype name (e.g., 'French Spring', 'Tapestry Autumn')",
+  "reasoning": "Why this painting fits this season's aesthetic",
+  "seasonal_elements": ["List specific elements that indicate the season"]
+},`);
+  }
+
+  if (options.includes('jewelry')) {
+    sections.push(`
+"jewelry_accessories": {
+  "items": ["Jewelry pieces visible - Pearls, Cameo, Pendant, Tiara, etc."],
+  "metals": ["Gold, Silver, Rose Gold, Antique Gold, Copper, etc."],
+  "stones": ["Gemstones if visible - Ruby, Emerald, Pearl, Diamond, etc."],
+  "style": "Overall jewelry style (Opulent, Delicate, Statement, Vintage, Minimal)",
+  "best_metal_recommendation": "Which metal tone suits the subject/palette"
+},`);
+  }
+
+  if (options.includes('clothing_cut')) {
+    sections.push(`
+"clothing_cut": {
+  "silhouette": {
+    "primary": "Main silhouette (Empire Waist, A-Line, Fitted, Ball Gown, Column, etc.)",
+    "structure": "Structured, Flowing, Draped, Tailored",
+    "volume": "Minimal, Moderate, Voluminous"
+  },
+  "neckline": "Primary neckline style (Portrait, Off-Shoulder, Square, V-Neck, Boat, etc.)",
+  "sleeves": "Sleeve style (Bishop, Bell, Puff, Fitted, Cap, Sleeveless, etc.)",
+  "waistline": "Natural, Empire, Dropped, Undefined",
+  "length": "Full length, Tea length, Knee, etc.",
+  "construction_notes": "Special details about the garment construction"
+},`);
+  }
+
+  // Always include talking points
+  sections.push(`
+"best_for": ["What this painting best demonstrates"],
+"client_talking_points": ["2-3 bullet points a color consultant could use when showing this to a client"]`);
+
+  return sections.join('\n') + '\n\nWrap your response in a valid JSON object with curly braces.';
+};
+
+const FULL_ANALYSIS_PROMPT = `You are analyzing a painting for a personal color analysis system based on Nechama Yaffe's methodology. 
 
 Analyze this painting and extract fashion/style elements that can be used as references for clients. Focus on the clothing, fabrics, colors, and overall aesthetic.
 
@@ -73,7 +185,7 @@ serve(async (req) => {
   }
 
   try {
-    const { imageBase64, imageUrl } = await req.json();
+    const { imageBase64, imageUrl, analysisOptions } = await req.json();
     
     if (!imageBase64 && !imageUrl) {
       return new Response(
@@ -86,6 +198,11 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
+
+    // Use focused prompt if specific options provided, otherwise full analysis
+    const prompt = analysisOptions && analysisOptions.length > 0 
+      ? buildPrompt(analysisOptions)
+      : FULL_ANALYSIS_PROMPT;
 
     // Build the image content for the API
     const imageContent = imageBase64 
@@ -104,12 +221,12 @@ serve(async (req) => {
           {
             role: "user",
             content: [
-              { type: "text", text: PAINTING_ANALYSIS_PROMPT },
+              { type: "text", text: prompt },
               imageContent
             ]
           }
         ],
-        max_tokens: 2000,
+        max_tokens: 3000,
       }),
     });
 
@@ -157,7 +274,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ analysis }),
+      JSON.stringify({ analysis, analyzedOptions: analysisOptions || 'full' }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
