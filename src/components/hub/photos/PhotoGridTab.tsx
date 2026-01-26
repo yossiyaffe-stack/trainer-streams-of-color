@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { X } from 'lucide-react';
 import { useHub } from '@/contexts/HubContext';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -146,9 +147,16 @@ export function PhotoGridTab() {
           onClick={() => setExpanded(null)}
         >
           <div 
-            className="bg-card rounded-xl max-w-2xl w-full max-h-[80vh] overflow-auto p-6"
+            className="bg-card rounded-xl max-w-2xl w-full max-h-[80vh] overflow-auto p-6 relative"
             onClick={e => e.stopPropagation()}
           >
+            <button
+              onClick={() => setExpanded(null)}
+              className="absolute top-4 right-4 p-1 rounded-full hover:bg-muted transition-colors"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5 text-muted-foreground" />
+            </button>
             <div className="flex gap-6">
               <img 
                 src={expandedPhoto.preview} 
