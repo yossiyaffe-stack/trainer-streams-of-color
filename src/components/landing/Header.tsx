@@ -49,12 +49,8 @@ export function Header() {
             ))}
           </nav>
 
-          {/* CTA */}
-          <div className="hidden md:flex items-center gap-3">
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/paintings">Paintings</Link>
-            </Button>
-          </div>
+          {/* Spacer for layout balance */}
+          <div className="hidden md:block w-24" />
 
           {/* Mobile menu button */}
           <Button
