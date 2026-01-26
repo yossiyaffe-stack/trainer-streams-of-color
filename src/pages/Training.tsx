@@ -1,0 +1,232 @@
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Header } from '@/components/landing/Header';
+import { Footer } from '@/components/landing/Footer';
+import { PhotoUpload } from '@/components/training/PhotoUpload';
+import { AnalysisResult } from '@/components/training/AnalysisResult';
+import { StatsOverview } from '@/components/training/StatsOverview';
+import { SAMPLE_SUBTYPES } from '@/data/subtypes';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { 
+  Camera, 
+  CheckSquare, 
+  Sparkles, 
+  BookOpen, 
+  BarChart3,
+  Play,
+  Loader2 
+} from 'lucide-react';
+
+export default function Training() {
+  const [activeTab, setActiveTab] = useState('analyze');
+  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
+
+  const handleAnalyze = async () => {
+    if (!selectedPhoto) return;
+    
+    setIsAnalyzing(true);
+    
+    // Simulate AI analysis - in production this would call the edge function
+    setTimeout(() => {
+      setAnalysisResult({
+        predictions: [
+          { subtype: SAMPLE_SUBTYPES[0], confidence: 85 },
+          { subtype: SAMPLE_SUBTYPES[2], confidence: 72 },
+          { subtype: SAMPLE_SUBTYPES[4], confidence: 58 },
+        ],
+        extractedFeatures: {
+          skinUndertone: 'warm',
+          skinDepth: 'light',
+          eyeColor: 'Blue-Green',
+          hairColor: 'Golden Blonde',
+          contrastLevel: 'medium',
+        },
+      });
+      setIsAnalyzing(false);
+    }, 2000);
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Header />
+      
+      <main className="pt-24 pb-16">
+        <div className="container px-6">
+          {/* Page Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <h1 className="font-serif text-4xl md:text-5xl font-bold mb-4">
+              Training Mode
+            </h1>
+            <p className="text-lg text-muted-foreground max-w-2xl">
+              Upload photos, review AI predictions, and correct results to improve the model's accuracy.
+            </p>
+          </motion.div>
+
+          {/* Stats Overview */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="mb-8"
+          >
+            <StatsOverview 
+              stats={{
+                totalPhotos: 142,
+                confirmedPhotos: 98,
+                accuracy: 87,
+                pendingClusters: 3,
+              }}
+            />
+          </motion.div>
+
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <TabsList className="bg-muted/50 p-1 h-auto flex-wrap">
+              <TabsTrigger value="analyze" className="gap-2 data-[state=active]:bg-background">
+                <Camera className="w-4 h-4" />
+                Analyze Photo
+              </TabsTrigger>
+              <TabsTrigger value="review" className="gap-2 data-[state=active]:bg-background">
+                <CheckSquare className="w-4 h-4" />
+                Review Queue
+              </TabsTrigger>
+              <TabsTrigger value="clusters" className="gap-2 data-[state=active]:bg-background">
+                <Sparkles className="w-4 h-4" />
+                New Subtypes
+              </TabsTrigger>
+              <TabsTrigger value="subtypes" className="gap-2 data-[state=active]:bg-background">
+                <BookOpen className="w-4 h-4" />
+                Manage Subtypes
+              </TabsTrigger>
+              <TabsTrigger value="metrics" className="gap-2 data-[state=active]:bg-background">
+                <BarChart3 className="w-4 h-4" />
+                Metrics
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Analyze Photo Tab */}
+            <TabsContent value="analyze" className="space-y-6">
+              <div className="grid lg:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <h2 className="font-serif text-2xl font-semibold">Upload Photo</h2>
+                  <PhotoUpload 
+                    selectedPhoto={selectedPhoto}
+                    onPhotoSelect={setSelectedPhoto}
+                    isAnalyzing={isAnalyzing}
+                  />
+                  {selectedPhoto && !analysisResult && (
+                    <Button 
+                      onClick={handleAnalyze} 
+                      disabled={isAnalyzing}
+                      className="w-full"
+                      size="lg"
+                    >
+                      {isAnalyzing ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Analyzing...
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-4 h-4 mr-2" />
+                          Run Analysis
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <h2 className="font-serif text-2xl font-semibold">Analysis Results</h2>
+                  {analysisResult ? (
+                    <AnalysisResult 
+                      predictions={analysisResult.predictions}
+                      extractedFeatures={analysisResult.extractedFeatures}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-64 rounded-2xl bg-muted/30 border-2 border-dashed border-border">
+                      <p className="text-muted-foreground">Upload a photo to see analysis results</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* Review Queue Tab */}
+            <TabsContent value="review" className="space-y-6">
+              <div className="text-center py-16">
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                  <CheckSquare className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <h3 className="font-serif text-xl font-semibold mb-2">No Pending Reviews</h3>
+                <p className="text-muted-foreground">
+                  All analyzed photos have been reviewed. Great work!
+                </p>
+              </div>
+            </TabsContent>
+
+            {/* New Subtypes Tab */}
+            <TabsContent value="clusters" className="space-y-6">
+              <div className="text-center py-16">
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                  <Sparkles className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <h3 className="font-serif text-xl font-semibold mb-2">No Pending Clusters</h3>
+                <p className="text-muted-foreground">
+                  When photos don't match existing subtypes, clusters will appear here for review.
+                </p>
+              </div>
+            </TabsContent>
+
+            {/* Manage Subtypes Tab */}
+            <TabsContent value="subtypes" className="space-y-6">
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {SAMPLE_SUBTYPES.map((subtype) => (
+                  <div 
+                    key={subtype.id}
+                    className={`p-4 rounded-xl season-card-${subtype.season} border border-border/50`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium">{subtype.name}</h4>
+                      <span className="text-xs text-muted-foreground capitalize">{subtype.season}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {subtype.paletteEffects.slice(0, 2).join(' • ')}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </TabsContent>
+
+            {/* Metrics Tab */}
+            <TabsContent value="metrics" className="space-y-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="p-6 rounded-2xl bg-card border border-border">
+                  <h3 className="font-serif text-xl font-semibold mb-4">Accuracy Over Time</h3>
+                  <div className="h-48 flex items-center justify-center bg-muted/30 rounded-xl">
+                    <p className="text-muted-foreground">Chart coming soon</p>
+                  </div>
+                </div>
+                <div className="p-6 rounded-2xl bg-card border border-border">
+                  <h3 className="font-serif text-xl font-semibold mb-4">Season Distribution</h3>
+                  <div className="h-48 flex items-center justify-center bg-muted/30 rounded-xl">
+                    <p className="text-muted-foreground">Chart coming soon</p>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </main>
+
+      <Footer />
+    </div>
+  );
+}
