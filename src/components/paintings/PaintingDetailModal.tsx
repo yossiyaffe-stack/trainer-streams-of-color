@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { X, Palette, Shirt, Sparkles, Crown, Gem, Trash2, Loader2, Check, Tag, Wand2, Settings2, Save, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import {
@@ -72,6 +71,18 @@ const SEASON_EMOJIS: Record<string, string> = {
 };
 
 export function PaintingDetailModal({ painting: initialPainting, onClose, onDelete, onUpdate, isPaletteContext = false }: PaintingDetailModalProps) {
+  // Keyboard shortcut: Escape to close
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      onClose();
+    }
+  }, [onClose]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
   const { toast } = useToast();
   const [painting, setPainting] = useState(initialPainting);
   const [deleting, setDeleting] = useState(false);
@@ -516,8 +527,9 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
         </div>
 
         {/* Details */}
-        <ScrollArea className="md:w-1/2 max-h-[60vh] md:max-h-[90vh]">
-          <div className="p-6 space-y-6">
+        {/* Native scrolling - much faster than ScrollArea */}
+        <div className="md:w-1/2 max-h-[60vh] md:max-h-[90vh] overflow-y-auto">
+          <div className="p-6 space-y-6 pb-24">
             {/* Header with Editable Title */}
             <div className="flex items-start justify-between">
               <div className="flex-1 mr-4 space-y-2">
@@ -971,7 +983,7 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
               )}
             </div>
           </div>
-        </ScrollArea>
+        </div>
       </motion.div>
 
       {/* Analysis Options Dialog */}
