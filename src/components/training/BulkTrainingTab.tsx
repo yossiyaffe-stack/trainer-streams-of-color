@@ -251,6 +251,124 @@ export function BulkTrainingTab() {
     ));
   };
 
+  // Delete a photo from the list
+  const deletePhoto = (photoId: string) => {
+    setPhotos(prev => prev.filter(p => p.id !== photoId));
+    toast.success('Photo removed');
+  };
+
+  // Re-analyze a single photo
+  const reanalyzePhoto = async (photoId: string) => {
+    const photo = photos.find(p => p.id === photoId);
+    if (!photo) return;
+
+    setPhotos(prev => prev.map(p => 
+      p.id === photoId ? { ...p, status: 'analyzing' } : p
+    ));
+
+    try {
+      // Upload to storage first
+      const filename = `training/${Date.now()}_${photo.filename}`;
+      const { error: uploadError } = await supabase.storage
+        .from('face-images')
+        .upload(filename, photo.file);
+
+      if (uploadError) throw uploadError;
+
+      // Create face_images record
+      const { data: imageRecord, error: dbError } = await supabase
+        .from('face_images')
+        .insert({
+          storage_path: filename,
+          original_filename: photo.filename,
+          source: 'training_upload',
+          file_size_bytes: photo.file.size,
+        })
+        .select()
+        .single();
+
+      if (dbError) throw dbError;
+
+      // Get public URL for analysis
+      const { data: publicUrl } = supabase.storage
+        .from('face-images')
+        .getPublicUrl(filename);
+
+      // Call the real AI analysis edge function
+      const { data: analysisResult, error: analyzeError } = await supabase.functions.invoke('analyze-face', {
+        body: { 
+          faceImageId: imageRecord.id,
+          imageUrl: publicUrl.publicUrl,
+        },
+      });
+
+      if (analyzeError) throw analyzeError;
+
+      const analysis = analysisResult?.analysis;
+      
+      // Map AI result to subtype
+      const predictedSubtype = allSubtypes.find(s => 
+        s.name.toLowerCase().includes(analysis?.predicted_subtype?.toLowerCase() || '') ||
+        analysis?.predicted_subtype?.toLowerCase().includes(s.name.toLowerCase())
+      ) || (analysis?.predicted_subtype ? {
+        id: `ai-${Date.now()}`,
+        name: analysis.predicted_subtype,
+        season: (analysis.predicted_season || 'autumn') as 'spring' | 'summer' | 'autumn' | 'winter',
+        palette: {},
+        colorCombinations: [],
+        paletteEffects: [],
+        fabrics: [],
+        prints: [],
+        jewelry: {},
+      } : null);
+
+      // Map alternatives
+      const alternativeSubtypes: Subtype[] = (analysis?.alternatives || []).map((alt: any) => {
+        const found = allSubtypes.find(s => 
+          s.name.toLowerCase().includes(alt.subtype?.toLowerCase() || '')
+        );
+        return found || { 
+          id: `alt-${Date.now()}`, 
+          name: alt.subtype, 
+          season: 'autumn' as const,
+          palette: {},
+          colorCombinations: [],
+          paletteEffects: [],
+          fabrics: [],
+          prints: [],
+          jewelry: {},
+        };
+      });
+
+      setPhotos(prev => prev.map(p => 
+        p.id === photoId ? {
+          ...p,
+          status: 'analyzed',
+          aiPrediction: predictedSubtype,
+          aiConfidence: analysis?.confidence || 0,
+          aiAlternatives: alternativeSubtypes,
+          extractedFeatures: {
+            undertone: analysis?.skin?.undertone || 'neutral',
+            depth: analysis?.depth?.level?.replace('-', '') as any || 'medium',
+            contrast: analysis?.contrast?.level?.replace('-', '') as any || 'medium',
+            eyeColor: analysis?.eyes?.color_name,
+            hairColor: analysis?.hair?.color_name
+          },
+          confirmedSubtype: null, // Reset confirmed subtype
+          isNewSubtype: (analysis?.confidence || 0) < 50
+        } : p
+      ));
+      
+      toast.success('Photo re-analyzed');
+    } catch (error) {
+      console.error('Re-analysis failed:', error);
+      setPhotos(prev => prev.map(p => 
+        p.id === photoId ? { ...p, status: 'error' } : p
+      ));
+      toast.error('Re-analysis failed');
+    }
+  };
+
   const batchConfirmHighConfidence = () => {
     setPhotos(prev => prev.map(p => 
       p.status === 'analyzed' && (p.aiConfidence || 0) >= 80
@@ -456,6 +574,8 @@ export function BulkTrainingTab() {
                   onConfirmCorrect={() => confirmCorrect(photo.id)}
                   onChangeSubtype={(subtypeId) => changeSubtype(photo.id, subtypeId)}
                   onUpdateNotes={(notes) => updateNotes(photo.id, notes)}
+                  onDelete={() => deletePhoto(photo.id)}
+                  onReanalyze={() => reanalyzePhoto(photo.id)}
                   isEditing={editingId === photo.id}
                   onStartEdit={() => setEditingId(photo.id)}
                   onEndEdit={() => setEditingId(null)}

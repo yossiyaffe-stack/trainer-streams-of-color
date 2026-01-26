@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Check, X, ChevronDown, ChevronRight, Loader2, Sparkles } from 'lucide-react';
+import { Check, X, ChevronDown, ChevronRight, Loader2, Sparkles, Trash2, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface BulkPhotoRowProps {
@@ -22,6 +22,8 @@ interface BulkPhotoRowProps {
   onConfirmCorrect: () => void;
   onChangeSubtype: (subtypeId: string) => void;
   onUpdateNotes: (notes: string) => void;
+  onDelete: () => void;
+  onReanalyze: () => void;
   isEditing: boolean;
   onStartEdit: () => void;
   onEndEdit: () => void;
@@ -33,6 +35,8 @@ export function BulkPhotoRow({
   onConfirmCorrect,
   onChangeSubtype,
   onUpdateNotes,
+  onDelete,
+  onReanalyze,
   isEditing,
   onStartEdit,
   onEndEdit,
@@ -242,33 +246,59 @@ export function BulkPhotoRow({
 
       {/* Actions */}
       <td className="px-4 py-3">
-        {photo.status === 'analyzed' && (
+        <div className="flex items-center gap-1">
+          {photo.status === 'analyzed' && (
+            <Button
+              onClick={onConfirmCorrect}
+              size="sm"
+              variant="outline"
+              className="text-xs border-success/50 text-success hover:bg-success/10"
+            >
+              <Check className="w-3 h-3 mr-1" />
+              Correct
+            </Button>
+          )}
+          {photo.status === 'confirmed' && (
+            <Badge 
+              variant="outline"
+              className={cn(
+                'text-xs',
+                photo.confirmedSubtype?.id === photo.aiPrediction?.id
+                  ? 'border-success/50 text-success bg-success/10'
+                  : 'border-warning/50 text-warning bg-warning/10'
+              )}
+            >
+              {photo.confirmedSubtype?.id === photo.aiPrediction?.id ? '✓ Verified' : '↻ Corrected'}
+            </Badge>
+          )}
+          {photo.status === 'pending' && (
+            <span className="text-xs text-muted-foreground">Waiting...</span>
+          )}
+          
+          {/* Refresh button - re-analyze */}
+          {(photo.status === 'analyzed' || photo.status === 'confirmed' || photo.status === 'error') && (
+            <Button
+              onClick={onReanalyze}
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 text-primary hover:bg-primary/10"
+              title="Re-analyze"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </Button>
+          )}
+          
+          {/* Delete button */}
           <Button
-            onClick={onConfirmCorrect}
-            size="sm"
-            variant="outline"
-            className="text-xs border-success/50 text-success hover:bg-success/10"
+            onClick={onDelete}
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 text-destructive hover:bg-destructive/10"
+            title="Remove"
           >
-            <Check className="w-3 h-3 mr-1" />
-            Correct
+            <Trash2 className="w-3.5 h-3.5" />
           </Button>
-        )}
-        {photo.status === 'confirmed' && (
-          <Badge 
-            variant="outline"
-            className={cn(
-              'text-xs',
-              photo.confirmedSubtype?.id === photo.aiPrediction?.id
-                ? 'border-success/50 text-success bg-success/10'
-                : 'border-warning/50 text-warning bg-warning/10'
-            )}
-          >
-            {photo.confirmedSubtype?.id === photo.aiPrediction?.id ? '✓ Verified' : '↻ Corrected'}
-          </Badge>
-        )}
-        {photo.status === 'pending' && (
-          <span className="text-xs text-muted-foreground">Waiting...</span>
-        )}
+        </div>
       </td>
     </tr>
   );
