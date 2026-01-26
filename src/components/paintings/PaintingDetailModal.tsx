@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Palette, Shirt, Sparkles, Crown, Gem, Trash2, Loader2, Check, Tag, Wand2, Settings2, Save, FileText, Star } from 'lucide-react';
+import { X, Palette, Shirt, Sparkles, Crown, Gem, Trash2, Loader2, Check, Tag, Wand2, Settings2, Save, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -433,17 +432,20 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
         {/* Details */}
         <ScrollArea className="md:w-1/2 max-h-[60vh] md:max-h-[90vh]">
           <div className="p-6 space-y-6">
-            {/* Header */}
+            {/* Header with Editable Title */}
             <div className="flex items-start justify-between">
-              <div>
-                {painting.suggested_season && (
-                  <Badge className={SEASON_COLORS[painting.suggested_season] || 'bg-muted'}>
-                    {SEASON_EMOJIS[painting.suggested_season] || ''} {painting.suggested_season}
+              <div className="flex-1 mr-4">
+                {(painting.suggested_season || selectedSubtypeData) && (
+                  <Badge className={SEASON_COLORS[selectedSubtypeData?.season || painting.suggested_season || ''] || 'bg-muted'}>
+                    {SEASON_EMOJIS[selectedSubtypeData?.season || painting.suggested_season || ''] || ''} {selectedSubtypeData?.season || painting.suggested_season}
                   </Badge>
                 )}
-                <h2 className="font-serif text-2xl font-bold mt-2">
-                  {painting.title || 'Untitled'}
-                </h2>
+                <Input
+                  value={editedTitle}
+                  onChange={(e) => setEditedTitle(e.target.value)}
+                  placeholder="Enter painting title..."
+                  className="font-serif text-2xl font-bold mt-2 border-transparent hover:border-border focus:border-primary bg-transparent h-auto p-0"
+                />
                 {painting.artist && (
                   <p className="text-muted-foreground">{painting.artist}</p>
                 )}
@@ -454,6 +456,17 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
               <Button variant="ghost" size="icon" onClick={onClose}>
                 <X className="w-5 h-5" />
               </Button>
+            </div>
+
+            {/* Notes - Always Editable */}
+            <div>
+              <Textarea
+                value={editedNotes}
+                onChange={(e) => setEditedNotes(e.target.value)}
+                placeholder="Add notes, observations, or description..."
+                rows={2}
+                className="bg-muted/30 border-transparent hover:border-border focus:border-primary resize-none"
+              />
             </div>
 
             {/* Analysis Actions */}
@@ -739,45 +752,15 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
               </div>
             )}
 
-            {/* Editable Description Section */}
-            <div className="border-t pt-4 space-y-4">
-              <h4 className="font-medium flex items-center gap-2">
-                <FileText className="w-4 h-4 text-primary" />
-                Edit Details
-              </h4>
-              
-              <div className="space-y-3">
-                <div>
-                  <Label htmlFor="edit-title" className="text-sm text-muted-foreground">Title</Label>
-                  <Input
-                    id="edit-title"
-                    value={editedTitle}
-                    onChange={(e) => setEditedTitle(e.target.value)}
-                    placeholder="Enter painting title..."
-                    className="mt-1 bg-background border-muted-foreground/30"
-                  />
+            {/* Save Actions */}
+            <div className="border-t pt-4 space-y-3">
+              {/* Palette Painting Indicator */}
+              {isPalettePainting && (
+                <div className="flex items-center gap-2 text-sm text-primary">
+                  <Star className="w-4 h-4 fill-primary" />
+                  <span className="font-medium">This is a Palette Painting</span>
                 </div>
-                
-                <div>
-                  <Label htmlFor="edit-notes" className="text-sm text-muted-foreground">Notes / Description</Label>
-                  <Textarea
-                    id="edit-notes"
-                    value={editedNotes}
-                    onChange={(e) => setEditedNotes(e.target.value)}
-                    placeholder="Add notes, observations, or description..."
-                    rows={3}
-                    className="mt-1 bg-background border-muted-foreground/30 resize-none"
-                  />
-                </div>
-
-                {/* Palette Painting Indicator */}
-                {isPalettePainting && (
-                  <div className="flex items-center gap-2 text-sm text-primary">
-                    <Star className="w-4 h-4 fill-primary" />
-                    <span className="font-medium">This is a Palette Painting</span>
-                  </div>
-                )}
-              </div>
+              )}
 
               {/* Save Buttons */}
               <div className="flex flex-col sm:flex-row gap-2">
