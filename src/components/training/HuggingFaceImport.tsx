@@ -72,7 +72,7 @@ export function HuggingFaceImport() {
         console.error('Failed to load datasets:', err);
         toast({
           title: 'Error',
-          description: 'Failed to load available datasets',
+          description: err instanceof Error ? err.message : 'Failed to load available datasets',
           variant: 'destructive',
         });
       }
@@ -103,13 +103,14 @@ export function HuggingFaceImport() {
           setImages(data.images);
           setTotal(data.total);
         } else {
-          throw new Error(data.error);
+          const msg = data?.hint ? `${data.error}. ${data.hint}` : data.error;
+          throw new Error(msg || 'Failed to load images');
         }
       } catch (err) {
         console.error('Failed to browse images:', err);
         toast({
           title: 'Error',
-          description: 'Failed to load images from dataset',
+          description: err instanceof Error ? err.message : 'Failed to load images from dataset',
           variant: 'destructive',
         });
         setImages([]);
@@ -164,7 +165,8 @@ export function HuggingFaceImport() {
         });
         setSelectedImages(new Set());
       } else {
-        throw new Error(data.error);
+        const msg = data?.hint ? `${data.error}. ${data.hint}` : data.error;
+        throw new Error(msg || 'Import failed');
       }
     } catch (err) {
       console.error('Import failed:', err);
