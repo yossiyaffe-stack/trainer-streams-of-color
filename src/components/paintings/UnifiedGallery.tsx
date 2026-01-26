@@ -7,7 +7,8 @@ import {
   Grid3X3, 
   LayoutGrid, 
   Square, 
-  Palette
+  Palette,
+  X
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { PaintingDetailModal } from './PaintingDetailModal';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import type { Painting, PaintingAnalysis } from '@/types/paintings';
 
 type ViewMode = 'compact' | 'grid' | 'large';
@@ -124,6 +126,16 @@ export function UnifiedGallery() {
 
   const museumCount = paintings.filter(isMuseumPainting).length;
   const uploadedCount = paintings.length - museumCount;
+
+  const handleDeletePainting = async (id: string) => {
+    const { error } = await supabase.from('paintings').delete().eq('id', id);
+    if (error) {
+      toast.error('Failed to delete painting');
+    } else {
+      setPaintings(prev => prev.filter(p => p.id !== id));
+      toast.success('Painting deleted');
+    }
+  };
 
   if (loading) {
     return (
@@ -314,8 +326,19 @@ export function UnifiedGallery() {
                 loading="lazy"
               />
               
+              {/* Delete button */}
+              <button
+                className="absolute top-1 right-1 z-20 w-6 h-6 rounded-full bg-black/60 hover:bg-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeletePainting(painting.id);
+                }}
+              >
+                <X className="w-3.5 h-3.5 text-white" />
+              </button>
+              
               {/* Hover Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                 <div className="absolute bottom-0 left-0 right-0 p-2">
                   <p className="font-serif text-white text-xs font-medium line-clamp-1">
                     {painting.title || 'Untitled'}
