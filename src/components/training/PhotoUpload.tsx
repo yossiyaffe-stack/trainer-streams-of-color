@@ -1,11 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Upload, Image, X, CheckCircle } from 'lucide-react';
+import { Upload, X, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface PhotoUploadProps {
-  onPhotoSelect: (file: File) => void;
+  onPhotoSelect: (file: File | null) => void;
   selectedPhoto: File | null;
   isAnalyzing?: boolean;
 }
@@ -14,6 +14,17 @@ export function PhotoUpload({ onPhotoSelect, selectedPhoto, isAnalyzing }: Photo
   const [isDragOver, setIsDragOver] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
+  // Sync previewUrl with selectedPhoto prop - allows parent to clear the photo
+  useEffect(() => {
+    if (selectedPhoto) {
+      const url = URL.createObjectURL(selectedPhoto);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setPreviewUrl(null);
+    }
+  }, [selectedPhoto]);
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
@@ -21,7 +32,6 @@ export function PhotoUpload({ onPhotoSelect, selectedPhoto, isAnalyzing }: Photo
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith('image/')) {
       onPhotoSelect(file);
-      setPreviewUrl(URL.createObjectURL(file));
     }
   }, [onPhotoSelect]);
 
@@ -29,13 +39,13 @@ export function PhotoUpload({ onPhotoSelect, selectedPhoto, isAnalyzing }: Photo
     const file = e.target.files?.[0];
     if (file) {
       onPhotoSelect(file);
-      setPreviewUrl(URL.createObjectURL(file));
     }
+    // Reset input so same file can be selected again
+    e.target.value = '';
   };
 
   const clearPhoto = () => {
-    setPreviewUrl(null);
-    onPhotoSelect(null as any);
+    onPhotoSelect(null);
   };
 
   return (

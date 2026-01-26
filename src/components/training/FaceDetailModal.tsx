@@ -1,9 +1,20 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Sparkles, Eye, Palette, User, Sun, Moon, Loader2, Check } from 'lucide-react';
+import { X, Sparkles, Eye, Palette, User, Sun, Moon, Loader2, Check, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -47,6 +58,7 @@ interface FaceDetailModalProps {
   onClose: () => void;
   onAnalyze: (face: FaceImage) => Promise<void>;
   onUpdate: () => void;
+  onDelete?: (id: string) => Promise<void>;
   isAnalyzing: boolean;
 }
 
@@ -66,10 +78,29 @@ const STATUS_LABELS: Record<string, string> = {
   nechama_verified: 'Nechama Verified',
 };
 
-export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, isAnalyzing }: FaceDetailModalProps) {
+export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, isAnalyzing }: FaceDetailModalProps) {
   const { toast } = useToast();
   const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const label = face.color_label;
+
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    
+    setDeleting(true);
+    try {
+      await onDelete(face.id);
+      onClose();
+    } catch (err) {
+      toast({ 
+        title: 'Delete Failed', 
+        description: err instanceof Error ? err.message : 'Could not delete face',
+        variant: 'destructive' 
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const getImageUrl = () => {
     if (face.storage_path.startsWith('http')) {
@@ -334,51 +365,90 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, isAnalyzin
             )}
 
             {/* Actions */}
-            <div className="flex gap-2 pt-4 border-t">
-              {!hasAnalysis ? (
-                <Button 
-                  onClick={() => onAnalyze(face)}
-                  disabled={isAnalyzing}
-                  className="flex-1 gap-2"
-                >
-                  {isAnalyzing ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="w-4 h-4" />
-                  )}
-                  Analyze Face
-                </Button>
-              ) : (
-                <>
+            <div className="flex flex-col gap-3 pt-4 border-t">
+              <div className="flex gap-2">
+                {!hasAnalysis ? (
                   <Button 
                     onClick={() => onAnalyze(face)}
-                    disabled={isAnalyzing}
-                    variant="outline"
-                    className="gap-2"
+                    disabled={isAnalyzing || deleting}
+                    className="flex-1 gap-2"
                   >
                     {isAnalyzing ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <Sparkles className="w-4 h-4" />
                     )}
-                    Re-Analyze
+                    Analyze Face
                   </Button>
-                  
-                  {label?.label_status === 'ai_predicted' && (
+                ) : (
+                  <>
                     <Button 
-                      onClick={confirmPrediction}
-                      disabled={confirming}
-                      className="flex-1 gap-2 bg-success hover:bg-success/90"
+                      onClick={() => onAnalyze(face)}
+                      disabled={isAnalyzing || deleting}
+                      variant="outline"
+                      className="gap-2"
                     >
-                      {confirming ? (
+                      {isAnalyzing ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
-                        <Check className="w-4 h-4" />
+                        <Sparkles className="w-4 h-4" />
                       )}
-                      Confirm Prediction
+                      Re-Analyze
                     </Button>
-                  )}
-                </>
+                    
+                    {label?.label_status === 'ai_predicted' && (
+                      <Button 
+                        onClick={confirmPrediction}
+                        disabled={confirming || deleting}
+                        className="flex-1 gap-2 bg-success hover:bg-success/90"
+                      >
+                        {confirming ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Check className="w-4 h-4" />
+                        )}
+                        Confirm Prediction
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
+              
+              {/* Delete Button */}
+              {onDelete && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="w-full gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      disabled={isAnalyzing || deleting}
+                    >
+                      {deleting ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                      Delete Face
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete this face?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently remove the face image and all associated analysis data. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction 
+                        onClick={handleDelete}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               )}
             </div>
           </div>
