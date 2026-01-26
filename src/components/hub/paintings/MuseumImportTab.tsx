@@ -241,118 +241,89 @@ export function MuseumImportTab() {
       </div>
 
       {/* Quick Search Tags */}
-      <div className="space-y-3">
-        <div className="flex flex-wrap gap-2">
-          {QUICK_SEARCHES.map(qs => (
-            <Badge
-              key={qs.query}
-              variant="outline"
-              className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors px-3 py-1"
-              onClick={() => {
-                setSearchQuery(qs.query);
-                searchMuseums(qs.query);
-              }}
-            >
-              {qs.label}
-            </Badge>
-          ))}
+      <div className="space-y-4">
+        {/* Theme Tags */}
+        <div className="space-y-2">
+          <span className="text-sm text-muted-foreground">Quick searches:</span>
+          <div className="flex flex-wrap gap-2">
+            {QUICK_SEARCHES.map(qs => (
+              <Badge
+                key={qs.query}
+                variant="outline"
+                className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors px-3 py-1.5"
+                onClick={() => {
+                  setSearchQuery(qs.query);
+                  searchMuseums(qs.query);
+                }}
+              >
+                {qs.label}
+              </Badge>
+            ))}
+          </div>
         </div>
-        <div className="flex gap-2 items-center">
-          <span className="text-sm text-muted-foreground">By Season:</span>
-          {SEASON_SEARCHES.map(s => (
-            <Badge
-              key={s.label}
-              variant="secondary"
-              className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-              onClick={() => {
-                setSearchQuery(s.query);
-                searchMuseums(s.query);
-              }}
-            >
-              {s.emoji} {s.label}
-            </Badge>
-          ))}
+
+        {/* Season Tags */}
+        <div className="space-y-2">
+          <span className="text-sm text-muted-foreground">By season:</span>
+          <div className="flex flex-wrap gap-2">
+            {SEASON_SEARCHES.map(s => (
+              <Badge
+                key={s.label}
+                variant="secondary"
+                className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors px-3 py-1.5"
+                onClick={() => {
+                  setSearchQuery(s.query);
+                  searchMuseums(s.query);
+                }}
+              >
+                {s.emoji} {s.label}
+              </Badge>
+            ))}
+          </div>
         </div>
         
-        {/* Favorite Artists Section */}
-        <div className="flex flex-col gap-3 pt-3 border-t">
-          <div className="flex gap-3 items-center">
-            <span className="text-sm font-medium flex items-center gap-1.5">
-              ⭐ Favorite Artists
-              <span className="text-xs text-muted-foreground font-normal">(Nechama's references)</span>
-            </span>
-            <Select
-              onValueChange={(value) => {
-                const artist = FAVORITE_ARTISTS.find(a => a.query === value);
-                if (artist) {
-                  setSearchQuery(artist.name);
-                  searchMuseums(artist.query);
-                }
-              }}
-            >
-              <SelectTrigger className="w-[300px] bg-background">
-                <SelectValue placeholder="Select a favorite artist..." />
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px] bg-popover z-50">
-                {FAVORITE_ARTISTS.map(artist => (
-                  <SelectItem key={artist.query} value={artist.query}>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{artist.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {artist.subtypes}
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {/* Favorite Artists - All as clickable tags */}
+        <div className="space-y-2 pt-2 border-t">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">⭐ Favorite Artists</span>
+            <span className="text-xs text-muted-foreground">(Nechama's references)</span>
           </div>
-          
-          {/* Quick Favorite Badges */}
-          <div className="flex flex-wrap gap-1.5">
-            {FAVORITE_ARTISTS.slice(0, 8).map(artist => (
+          <div className="flex flex-wrap gap-2">
+            {FAVORITE_ARTISTS.map(artist => (
               <Badge
                 key={artist.query}
                 variant="outline"
-                className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors text-xs"
+                className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors px-3 py-1.5 border-primary/30"
                 onClick={() => {
                   setSearchQuery(artist.name);
                   searchMuseums(artist.query);
                 }}
+                title={artist.subtypes}
               >
-                {artist.name.split(' ').pop()}
+                {artist.name}
               </Badge>
             ))}
           </div>
+        </div>
 
-          {/* More Artists Dropdown */}
-          <div className="flex gap-3 items-center">
-            <span className="text-sm text-muted-foreground">More artists:</span>
-            <Select
-              onValueChange={(value) => {
-                const artist = MORE_ARTISTS.find(a => a.query === value);
-                if (artist) {
+        {/* More Artists */}
+        <div className="space-y-2">
+          <span className="text-sm text-muted-foreground">More masters:</span>
+          <div className="flex flex-wrap gap-2">
+            {MORE_ARTISTS.map(artist => (
+              <Badge
+                key={artist.query}
+                variant="outline"
+                className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors px-3 py-1.5"
+                onClick={() => {
                   setSearchQuery(artist.name);
                   searchMuseums(artist.query);
-                }
-              }}
-            >
-              <SelectTrigger className="w-[260px] bg-background">
-                <SelectValue placeholder="Browse more masters..." />
-              </SelectTrigger>
-              <SelectContent className="bg-popover z-50">
-                {MORE_ARTISTS.map(artist => (
-                  <SelectItem key={artist.query} value={artist.query}>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{artist.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {artist.movement}
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                }}
+                title={artist.movement}
+              >
+                {artist.name}
+              </Badge>
+            ))}
           </div>
         </div>
       </div>
