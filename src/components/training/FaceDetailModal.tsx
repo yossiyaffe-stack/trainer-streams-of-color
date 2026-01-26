@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { X, Sparkles, Eye, Palette, User, Sun, Moon, Loader2, Check, Trash2, Edit3, Save } from 'lucide-react';
+import { X, Sparkles, Eye, Palette, User, Sun, Moon, Loader2, Check, Trash2, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -123,7 +123,6 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
   const { toast } = useToast();
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [subtypes, setSubtypes] = useState<SubtypeOption[]>([]);
   const label = face.color_label;
@@ -142,7 +141,7 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
     fetchSubtypes();
   }, []);
 
-  // Initialize editable fields from current label
+  // Initialize editable fields from current label - also use AI predicted subtype as suggestion
   const [editFields, setEditFields] = useState<EditableFields>({
     skin_hex: label?.skin_hex || '#c4a484',
     skin_tone_name: label?.skin_tone_name || '',
@@ -154,8 +153,20 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
     contrast_level: label?.contrast_level || '',
     depth: label?.depth || '',
     confirmed_season: label?.confirmed_season || '',
-    confirmed_subtype: label?.confirmed_subtype || label?.ai_predicted_subtype || '',
+    confirmed_subtype: label?.confirmed_subtype || '',
   });
+
+  // Find matching Nechama subtype based on AI prediction
+  const suggestedSubtype = useMemo(() => {
+    if (!label?.ai_predicted_subtype || !subtypes.length) return null;
+    const aiPrediction = label.ai_predicted_subtype.toLowerCase();
+    // Try to find a matching subtype by name or slug
+    return subtypes.find(s => 
+      s.name.toLowerCase().includes(aiPrediction) || 
+      aiPrediction.includes(s.name.toLowerCase()) ||
+      s.slug.toLowerCase().includes(aiPrediction.replace(/\s+/g, '-'))
+    ) || null;
+  }, [label?.ai_predicted_subtype, subtypes]);
 
   // Filter subtypes by selected season
   const filteredSubtypes = editFields.confirmed_season 
@@ -215,7 +226,6 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
       }
 
       toast({ title: 'Saved', description: 'Palette updated successfully' });
-      setIsEditing(false);
       onUpdate();
     } catch (err) {
       toast({ 
@@ -322,13 +332,13 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
             {/* Header */}
             <div className="flex items-start justify-between">
               <div>
-                {(isEditing ? editFields.confirmed_season : label?.confirmed_season) && (
-                  <Badge className={cn(SEASON_COLORS[(isEditing ? editFields.confirmed_season : label?.confirmed_season) || ''] || 'bg-muted', 'capitalize')}>
-                    {isEditing ? editFields.confirmed_season : label?.confirmed_season}
+                {editFields.confirmed_season && (
+                  <Badge className={cn(SEASON_COLORS[editFields.confirmed_season] || 'bg-muted', 'capitalize')}>
+                    {editFields.confirmed_season}
                   </Badge>
                 )}
                 <h2 className="font-serif text-2xl font-bold mt-2">
-                  {isEditing ? editFields.confirmed_subtype || 'Set Subtype' : (label?.ai_predicted_subtype || label?.confirmed_subtype || 'Unanalyzed')}
+                  {editFields.confirmed_subtype || label?.ai_predicted_subtype || 'Set Subtype'}
                 </h2>
                 <div className="flex items-center gap-2 mt-1">
                   <Badge variant="outline" className="text-xs">
@@ -339,300 +349,319 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
-                {hasAnalysis && !isEditing && (
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => setIsEditing(true)}
-                    title="Edit Palette"
-                  >
-                    <Edit3 className="w-5 h-5" />
-                  </Button>
-                )}
-                <Button variant="ghost" size="icon" onClick={onClose}>
-                  <X className="w-5 h-5" />
-                </Button>
-              </div>
+              <Button variant="ghost" size="icon" onClick={onClose}>
+                <X className="w-5 h-5" />
+              </Button>
             </div>
 
-            {/* Edit Mode */}
-            {isEditing ? (
-              <div className="space-y-5">
-                {/* Season & Subtype */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Season</Label>
-                    <Select 
-                      value={editFields.confirmed_season} 
-                      onValueChange={(v) => handleFieldChange('confirmed_season', v)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select season" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {SEASON_OPTIONS.map(opt => (
-                          <SelectItem key={opt} value={opt} className="capitalize">
-                            {formatOptionLabel(opt)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Subtype (Nechama's Names)</Label>
-                    <Select 
-                      value={editFields.confirmed_subtype} 
-                      onValueChange={(v) => {
-                        // Find the subtype to also update season automatically
-                        const selectedSubtype = subtypes.find(s => s.name === v);
-                        if (selectedSubtype) {
-                          setEditFields(prev => ({
-                            ...prev,
-                            confirmed_subtype: v,
-                            confirmed_season: selectedSubtype.season.toLowerCase(),
-                          }));
-                        } else {
-                          handleFieldChange('confirmed_subtype', v);
-                        }
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select subtype" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover">
-                        {filteredSubtypes.length > 0 ? (
-                          filteredSubtypes.map(subtype => (
-                            <SelectItem key={subtype.id} value={subtype.name}>
-                              {subtype.name}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          subtypes.map(subtype => (
-                            <SelectItem key={subtype.id} value={subtype.name}>
-                              <span className="capitalize text-muted-foreground text-xs mr-2">{subtype.season}</span>
-                              {subtype.name}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <AddSubtypeDialog
-                      defaultSeason={editFields.confirmed_season}
-                      onSubtypeAdded={(newSubtype) => {
-                        setSubtypes(prev => [...prev, newSubtype]);
-                        handleFieldChange('confirmed_subtype', newSubtype.name);
-                      }}
+            {/* AI Confidence & Suggested Subtype */}
+            {label?.ai_confidence && (
+              <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+                <h4 className="font-medium mb-2 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  AI Analysis
+                </h4>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex-1 bg-muted rounded-full h-3 overflow-hidden">
+                    <div 
+                      className={cn(
+                        "h-full rounded-full transition-all",
+                        label.ai_confidence >= 80 ? "bg-success" :
+                        label.ai_confidence >= 50 ? "bg-warning" : "bg-destructive"
+                      )}
+                      style={{ width: `${label.ai_confidence}%` }}
                     />
                   </div>
+                  <span className="font-bold text-lg">{Math.round(label.ai_confidence)}%</span>
                 </div>
+                {label.ai_predicted_subtype && (
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">AI Predicted: </span>
+                    <span className="font-medium">{label.ai_predicted_subtype}</span>
+                    {suggestedSubtype && (
+                      <span className="text-primary ml-2">
+                        → Suggested: <strong>{suggestedSubtype.name}</strong>
+                      </span>
+                    )}
+                  </div>
+                )}
+                {label.ai_reasoning && (
+                  <p className="text-sm text-muted-foreground mt-2 italic">
+                    "{label.ai_reasoning}"
+                  </p>
+                )}
+              </div>
+            )}
 
-                {/* Skin */}
-                <div className="space-y-3 p-4 bg-muted/30 rounded-lg">
-                  <h4 className="font-medium flex items-center gap-2">
-                    <User className="w-4 h-4 text-primary" />
-                    Skin
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label className="text-xs">Color</Label>
-                      <div className="flex gap-2">
-                        <input 
-                          type="color" 
-                          value={editFields.skin_hex}
-                          onChange={(e) => handleFieldChange('skin_hex', e.target.value)}
-                          className="w-10 h-10 rounded border-0 cursor-pointer"
-                        />
-                        <Input 
-                          value={editFields.skin_hex}
-                          onChange={(e) => handleFieldChange('skin_hex', e.target.value)}
-                          className="flex-1 font-mono text-sm"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs">Tone Name</Label>
-                      <Select 
-                        value={editFields.skin_tone_name} 
-                        onValueChange={(v) => handleFieldChange('skin_tone_name', v)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select tone" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {SKIN_TONE_OPTIONS.map(opt => (
-                            <SelectItem key={opt} value={opt} className="capitalize">
-                              {formatOptionLabel(opt)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs">Undertone</Label>
-                    <Select 
-                      value={editFields.undertone} 
-                      onValueChange={(v) => handleFieldChange('undertone', v)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select undertone" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {UNDERTONE_OPTIONS.map(opt => (
-                          <SelectItem key={opt} value={opt} className="capitalize">
-                            {formatOptionLabel(opt)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Eyes */}
-                <div className="space-y-3 p-4 bg-muted/30 rounded-lg">
-                  <h4 className="font-medium flex items-center gap-2">
-                    <Eye className="w-4 h-4 text-primary" />
-                    Eyes
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label className="text-xs">Color</Label>
-                      <div className="flex gap-2">
-                        <input 
-                          type="color" 
-                          value={editFields.eye_hex}
-                          onChange={(e) => handleFieldChange('eye_hex', e.target.value)}
-                          className="w-10 h-10 rounded border-0 cursor-pointer"
-                        />
-                        <Input 
-                          value={editFields.eye_hex}
-                          onChange={(e) => handleFieldChange('eye_hex', e.target.value)}
-                          className="flex-1 font-mono text-sm"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs">Color Name</Label>
-                      <Select 
-                        value={editFields.eye_color_name} 
-                        onValueChange={(v) => handleFieldChange('eye_color_name', v)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select color" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {EYE_COLOR_OPTIONS.map(opt => (
-                            <SelectItem key={opt} value={opt} className="capitalize">
-                              {formatOptionLabel(opt)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Hair */}
-                <div className="space-y-3 p-4 bg-muted/30 rounded-lg">
-                  <h4 className="font-medium flex items-center gap-2">
-                    <Palette className="w-4 h-4 text-primary" />
-                    Hair
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label className="text-xs">Color</Label>
-                      <div className="flex gap-2">
-                        <input 
-                          type="color" 
-                          value={editFields.hair_hex}
-                          onChange={(e) => handleFieldChange('hair_hex', e.target.value)}
-                          className="w-10 h-10 rounded border-0 cursor-pointer"
-                        />
-                        <Input 
-                          value={editFields.hair_hex}
-                          onChange={(e) => handleFieldChange('hair_hex', e.target.value)}
-                          className="flex-1 font-mono text-sm"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs">Color Name</Label>
-                      <Select 
-                        value={editFields.hair_color_name} 
-                        onValueChange={(v) => handleFieldChange('hair_color_name', v)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select color" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {HAIR_COLOR_OPTIONS.map(opt => (
-                            <SelectItem key={opt} value={opt} className="capitalize">
-                              {formatOptionLabel(opt)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Contrast & Depth */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2">
-                      <Sun className="w-4 h-4 text-primary" />
-                      Contrast
-                    </Label>
-                    <Select 
-                      value={editFields.contrast_level} 
-                      onValueChange={(v) => handleFieldChange('contrast_level', v)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select contrast" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CONTRAST_OPTIONS.map(opt => (
-                          <SelectItem key={opt} value={opt} className="capitalize">
-                            {formatOptionLabel(opt)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2">
-                      <Moon className="w-4 h-4 text-primary" />
-                      Depth
-                    </Label>
-                    <Select 
-                      value={editFields.depth} 
-                      onValueChange={(v) => handleFieldChange('depth', v)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select depth" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DEPTH_OPTIONS.map(opt => (
-                          <SelectItem key={opt} value={opt} className="capitalize">
-                            {formatOptionLabel(opt)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Save / Cancel */}
-                <div className="flex gap-2 pt-4">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setIsEditing(false)}
-                    className="flex-1"
-                    disabled={saving}
+            {/* Always Editable Fields */}
+            <div className="space-y-5">
+              {/* Season & Subtype */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Season</Label>
+                  <Select 
+                    value={editFields.confirmed_season} 
+                    onValueChange={(v) => handleFieldChange('confirmed_season', v)}
                   >
-                    Cancel
-                  </Button>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select season" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SEASON_OPTIONS.map(opt => (
+                        <SelectItem key={opt} value={opt} className="capitalize">
+                          {formatOptionLabel(opt)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Subtype (Nechama's Names)</Label>
+                  <Select 
+                    value={editFields.confirmed_subtype} 
+                    onValueChange={(v) => {
+                      // Find the subtype to also update season automatically
+                      const selectedSubtype = subtypes.find(s => s.name === v);
+                      if (selectedSubtype) {
+                        setEditFields(prev => ({
+                          ...prev,
+                          confirmed_subtype: v,
+                          confirmed_season: selectedSubtype.season.toLowerCase(),
+                        }));
+                      } else {
+                        handleFieldChange('confirmed_subtype', v);
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select subtype" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover">
+                      {filteredSubtypes.length > 0 ? (
+                        filteredSubtypes.map(subtype => (
+                          <SelectItem key={subtype.id} value={subtype.name}>
+                            {subtype.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        subtypes.map(subtype => (
+                          <SelectItem key={subtype.id} value={subtype.name}>
+                            <span className="capitalize text-muted-foreground text-xs mr-2">{subtype.season}</span>
+                            {subtype.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <AddSubtypeDialog
+                    defaultSeason={editFields.confirmed_season}
+                    onSubtypeAdded={(newSubtype) => {
+                      setSubtypes(prev => [...prev, newSubtype]);
+                      handleFieldChange('confirmed_subtype', newSubtype.name);
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Skin */}
+              <div className="space-y-3 p-4 bg-muted/30 rounded-lg">
+                <h4 className="font-medium flex items-center gap-2">
+                  <User className="w-4 h-4 text-primary" />
+                  Skin
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Color</Label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="color" 
+                        value={editFields.skin_hex}
+                        onChange={(e) => handleFieldChange('skin_hex', e.target.value)}
+                        className="w-10 h-10 rounded border-0 cursor-pointer"
+                      />
+                      <Input 
+                        value={editFields.skin_hex}
+                        onChange={(e) => handleFieldChange('skin_hex', e.target.value)}
+                        className="flex-1 font-mono text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Tone Name</Label>
+                    <Select 
+                      value={editFields.skin_tone_name} 
+                      onValueChange={(v) => handleFieldChange('skin_tone_name', v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select tone" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SKIN_TONE_OPTIONS.map(opt => (
+                          <SelectItem key={opt} value={opt} className="capitalize">
+                            {formatOptionLabel(opt)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs">Undertone</Label>
+                  <Select 
+                    value={editFields.undertone} 
+                    onValueChange={(v) => handleFieldChange('undertone', v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select undertone" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {UNDERTONE_OPTIONS.map(opt => (
+                        <SelectItem key={opt} value={opt} className="capitalize">
+                          {formatOptionLabel(opt)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Eyes */}
+              <div className="space-y-3 p-4 bg-muted/30 rounded-lg">
+                <h4 className="font-medium flex items-center gap-2">
+                  <Eye className="w-4 h-4 text-primary" />
+                  Eyes
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Color</Label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="color" 
+                        value={editFields.eye_hex}
+                        onChange={(e) => handleFieldChange('eye_hex', e.target.value)}
+                        className="w-10 h-10 rounded border-0 cursor-pointer"
+                      />
+                      <Input 
+                        value={editFields.eye_hex}
+                        onChange={(e) => handleFieldChange('eye_hex', e.target.value)}
+                        className="flex-1 font-mono text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Color Name</Label>
+                    <Select 
+                      value={editFields.eye_color_name} 
+                      onValueChange={(v) => handleFieldChange('eye_color_name', v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select color" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {EYE_COLOR_OPTIONS.map(opt => (
+                          <SelectItem key={opt} value={opt} className="capitalize">
+                            {formatOptionLabel(opt)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Hair */}
+              <div className="space-y-3 p-4 bg-muted/30 rounded-lg">
+                <h4 className="font-medium flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-primary" />
+                  Hair
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Color</Label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="color" 
+                        value={editFields.hair_hex}
+                        onChange={(e) => handleFieldChange('hair_hex', e.target.value)}
+                        className="w-10 h-10 rounded border-0 cursor-pointer"
+                      />
+                      <Input 
+                        value={editFields.hair_hex}
+                        onChange={(e) => handleFieldChange('hair_hex', e.target.value)}
+                        className="flex-1 font-mono text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Color Name</Label>
+                    <Select 
+                      value={editFields.hair_color_name} 
+                      onValueChange={(v) => handleFieldChange('hair_color_name', v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select color" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {HAIR_COLOR_OPTIONS.map(opt => (
+                          <SelectItem key={opt} value={opt} className="capitalize">
+                            {formatOptionLabel(opt)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contrast & Depth */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Sun className="w-4 h-4 text-primary" />
+                    Contrast
+                  </Label>
+                  <Select 
+                    value={editFields.contrast_level} 
+                    onValueChange={(v) => handleFieldChange('contrast_level', v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select contrast" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CONTRAST_OPTIONS.map(opt => (
+                        <SelectItem key={opt} value={opt} className="capitalize">
+                          {formatOptionLabel(opt)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Moon className="w-4 h-4 text-primary" />
+                    Depth
+                  </Label>
+                  <Select 
+                    value={editFields.depth} 
+                    onValueChange={(v) => handleFieldChange('depth', v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select depth" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DEPTH_OPTIONS.map(opt => (
+                        <SelectItem key={opt} value={opt} className="capitalize">
+                          {formatOptionLabel(opt)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex flex-col gap-3 pt-4 border-t">
+                <div className="flex gap-2">
                   <Button 
                     onClick={handleSaveEdits}
                     className="flex-1 gap-2"
@@ -641,284 +670,73 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
                     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     Save Changes
                   </Button>
-                </div>
-              </div>
-            ) : (
-              <>
-                {/* Confidence */}
-                {label?.ai_confidence && (
-                  <div>
-                    <h4 className="font-medium mb-2 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-primary" />
-                      AI Confidence
-                    </h4>
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 bg-muted rounded-full h-3 overflow-hidden">
-                        <div 
-                          className={cn(
-                            "h-full rounded-full transition-all",
-                            label.ai_confidence >= 80 ? "bg-success" :
-                            label.ai_confidence >= 50 ? "bg-warning" : "bg-destructive"
-                          )}
-                          style={{ width: `${label.ai_confidence}%` }}
-                        />
-                      </div>
-                      <span className="font-bold text-lg">{Math.round(label.ai_confidence)}%</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Color Analysis */}
-                {hasAnalysis && (
-                  <>
-                    {/* Skin */}
-                    {label?.skin_hex && (
-                      <div>
-                        <h4 className="font-medium mb-2 flex items-center gap-2">
-                          <User className="w-4 h-4 text-primary" />
-                          Skin Tone
-                        </h4>
-                        <div className="flex items-center gap-3">
-                          <div 
-                            className="w-10 h-10 rounded-lg border-2 border-border"
-                            style={{ backgroundColor: label.skin_hex }}
-                          />
-                          <div>
-                            <p className="font-medium capitalize">
-                              {label.skin_tone_name?.replace(/_/g, ' ') || 'Unknown'}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              Undertone: <span className="capitalize">{label.undertone || 'Unknown'}</span>
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Eyes */}
-                    {label?.eye_hex && (
-                      <div>
-                        <h4 className="font-medium mb-2 flex items-center gap-2">
-                          <Eye className="w-4 h-4 text-primary" />
-                          Eye Color
-                        </h4>
-                        <div className="flex items-center gap-3">
-                          <div 
-                            className="w-10 h-10 rounded-full border-2 border-border"
-                            style={{ backgroundColor: label.eye_hex }}
-                          />
-                          <div>
-                            <p className="font-medium capitalize">
-                              {label.eye_color_name?.replace(/_/g, ' ') || 'Unknown'}
-                            </p>
-                            {label.eye_details?.description && (
-                              <p className="text-sm text-muted-foreground">
-                                {label.eye_details.description}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Hair */}
-                    {label?.hair_hex && (
-                      <div>
-                        <h4 className="font-medium mb-2 flex items-center gap-2">
-                          <Palette className="w-4 h-4 text-primary" />
-                          Hair Color
-                        </h4>
-                        <div className="flex items-center gap-3">
-                          <div 
-                            className="w-10 h-10 rounded-lg border-2 border-border"
-                            style={{ backgroundColor: label.hair_hex }}
-                          />
-                          <div>
-                            <p className="font-medium capitalize">
-                              {label.hair_color_name?.replace(/_/g, ' ') || 'Unknown'}
-                            </p>
-                            {label.hair_details?.is_natural !== undefined && (
-                              <p className="text-sm text-muted-foreground">
-                                {label.hair_details.is_natural ? 'Natural' : 'May be dyed'}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Contrast & Depth */}
-                    {(label?.contrast_level || label?.depth) && (
-                      <div className="grid grid-cols-2 gap-4">
-                        {label.contrast_level && (
-                          <div>
-                            <h4 className="font-medium mb-2 flex items-center gap-2">
-                              <Sun className="w-4 h-4 text-primary" />
-                              Contrast
-                            </h4>
-                            <Badge variant="secondary" className="capitalize">
-                              {label.contrast_level.replace(/-/g, ' ')}
-                            </Badge>
-                            {label.contrast_value && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Value: {label.contrast_value}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                        {label.depth && (
-                          <div>
-                            <h4 className="font-medium mb-2 flex items-center gap-2">
-                              <Moon className="w-4 h-4 text-primary" />
-                              Depth
-                            </h4>
-                            <Badge variant="secondary" className="capitalize">
-                              {label.depth.replace(/-/g, ' ')}
-                            </Badge>
-                            {label.depth_value && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Value: {label.depth_value}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Alternatives */}
-                    {label?.ai_alternatives && label.ai_alternatives.length > 0 && (
-                      <div>
-                        <h4 className="font-medium mb-2">Alternative Predictions</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {label.ai_alternatives.map((alt, i) => (
-                            <Badge key={i} variant="outline">
-                              {alt.subtype} ({alt.confidence}%)
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* AI Reasoning */}
-                    {label?.ai_reasoning && (
-                      <div className="bg-muted/50 rounded-lg p-4">
-                        <h4 className="font-medium mb-2">💭 AI Reasoning</h4>
-                        <p className="text-sm text-muted-foreground italic">
-                          "{label.ai_reasoning}"
-                        </p>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {/* Actions */}
-                <div className="flex flex-col gap-3 pt-4 border-t">
-                  <div className="flex gap-2">
-                    {!hasAnalysis ? (
-                      <>
-                        <Button 
-                          onClick={() => onAnalyze(face)}
-                          disabled={isAnalyzing || deleting}
-                          className="flex-1 gap-2"
-                        >
-                          {isAnalyzing ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Sparkles className="w-4 h-4" />
-                          )}
-                          Analyze Face
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => setIsEditing(true)}
-                          className="gap-2"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                          Manual Entry
-                        </Button>
-                      </>
+                  <Button 
+                    onClick={() => onAnalyze(face)}
+                    disabled={isAnalyzing || deleting}
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    {isAnalyzing ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      <>
-                        <Button 
-                          onClick={() => onAnalyze(face)}
-                          disabled={isAnalyzing || deleting}
-                          variant="outline"
-                          className="gap-2"
-                        >
-                          {isAnalyzing ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Sparkles className="w-4 h-4" />
-                          )}
-                          Re-Analyze
-                        </Button>
-                        
-                        <Button
-                          variant="outline"
-                          onClick={() => setIsEditing(true)}
-                          className="gap-2"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                          Edit Palette
-                        </Button>
-                        
-                        {label?.label_status === 'ai_predicted' && (
-                          <Button 
-                            onClick={confirmPrediction}
-                            disabled={confirming || deleting}
-                            className="flex-1 gap-2 bg-success hover:bg-success/90"
-                          >
-                            {confirming ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Check className="w-4 h-4" />
-                            )}
-                            Confirm
-                          </Button>
-                        )}
-                      </>
+                      <Sparkles className="w-4 h-4" />
                     )}
-                  </div>
-                  
-                  {/* Delete Button */}
-                  {onDelete && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="w-full gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          disabled={isAnalyzing || deleting}
-                        >
-                          {deleting ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="w-4 h-4" />
-                          )}
-                          Delete Face
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete this face?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently remove the face image and all associated analysis data. This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction 
-                            onClick={handleDelete}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    {hasAnalysis ? 'Re-Analyze' : 'Analyze'}
+                  </Button>
+                  {label?.label_status === 'ai_predicted' && (
+                    <Button 
+                      onClick={confirmPrediction}
+                      disabled={confirming || deleting}
+                      className="gap-2 bg-success hover:bg-success/90"
+                    >
+                      {confirming ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Check className="w-4 h-4" />
+                      )}
+                      Confirm
+                    </Button>
                   )}
                 </div>
-              </>
-            )}
+                
+                {/* Delete Button */}
+                {onDelete && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="w-full gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        disabled={isAnalyzing || deleting}
+                      >
+                        {deleting ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                        Delete Face
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete this face?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently remove the face image and all associated analysis data. This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={handleDelete}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </div>
+            </div>
           </div>
         </ScrollArea>
       </motion.div>
