@@ -82,6 +82,37 @@ serve(async (req) => {
 
     console.log(`Analyzing face image: ${faceImageId}`);
 
+    // Fetch the image and convert to base64 (HuggingFace URLs are signed and expire)
+    let imageBase64: string;
+    try {
+      console.log(`Fetching image from: ${imageUrl.substring(0, 100)}...`);
+      const imageResponse = await fetch(imageUrl);
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`);
+      }
+      const imageBlob = await imageResponse.blob();
+      const arrayBuffer = await imageBlob.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      
+      // Convert to base64
+      let binary = '';
+      for (let i = 0; i < uint8Array.length; i++) {
+        binary += String.fromCharCode(uint8Array[i]);
+      }
+      imageBase64 = btoa(binary);
+      
+      // Determine mime type
+      const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+      imageBase64 = `data:${contentType};base64,${imageBase64}`;
+      console.log(`Image fetched and converted to base64 (${Math.round(imageBase64.length / 1024)}KB)`);
+    } catch (fetchError) {
+      console.error("Failed to fetch image:", fetchError);
+      return new Response(
+        JSON.stringify({ error: `Failed to fetch image: ${fetchError instanceof Error ? fetchError.message : 'Unknown error'}` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -96,7 +127,7 @@ serve(async (req) => {
             role: "user",
             content: [
               { type: "text", text: FACE_ANALYSIS_PROMPT },
-              { type: "image_url", image_url: { url: imageUrl } }
+              { type: "image_url", image_url: { url: imageBase64 } }
             ]
           }
         ],
