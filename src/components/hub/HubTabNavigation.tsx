@@ -1,7 +1,7 @@
 import { useHub } from '@/contexts/HubContext';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { Upload, Grid3X3, Table, BarChart3, RefreshCw, Layout, List, Tags } from 'lucide-react';
+import { Upload, Grid3X3, Table, BarChart3, RefreshCw, Layout, List, Tags, Building2 } from 'lucide-react';
 
 const PHOTO_TABS = [
   { id: 'upload', label: 'Upload', icon: Upload },
@@ -13,6 +13,7 @@ const PHOTO_TABS = [
 
 const PAINTING_TABS = [
   { id: 'upload', label: 'Upload', icon: Upload },
+  { id: 'museum', label: 'Museum Import', icon: Building2 },
   { id: 'grid', label: 'Gallery', icon: Grid3X3 },
   { id: 'list', label: 'List View', icon: List },
   { id: 'bySubtype', label: 'By Subtype', icon: Tags },
