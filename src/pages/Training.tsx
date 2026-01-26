@@ -5,6 +5,7 @@ import { Footer } from '@/components/landing/Footer';
 import { PhotoUpload } from '@/components/training/PhotoUpload';
 import { AnalysisResult } from '@/components/training/AnalysisResult';
 import { StatsOverview } from '@/components/training/StatsOverview';
+import { BulkTrainingTab } from '@/components/training/BulkTrainingTab';
 import { SAMPLE_SUBTYPES } from '@/data/subtypes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,8 @@ import {
   BookOpen, 
   BarChart3,
   Play,
-  Loader2 
+  Loader2,
+  Table2
 } from 'lucide-react';
 
 export default function Training() {
@@ -93,6 +95,10 @@ export default function Training() {
                 <Camera className="w-4 h-4" />
                 Analyze Photo
               </TabsTrigger>
+              <TabsTrigger value="bulk" className="gap-2 data-[state=active]:bg-background">
+                <Table2 className="w-4 h-4" />
+                Bulk Training
+              </TabsTrigger>
               <TabsTrigger value="review" className="gap-2 data-[state=active]:bg-background">
                 <CheckSquare className="w-4 h-4" />
                 Review Queue
@@ -157,6 +163,11 @@ export default function Training() {
                   )}
                 </div>
               </div>
+            </TabsContent>
+
+            {/* Bulk Training Tab */}
+            <TabsContent value="bulk" className="space-y-6">
+              <BulkTrainingTab />
             </TabsContent>
 
             {/* Review Queue Tab */}
