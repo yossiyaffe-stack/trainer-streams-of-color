@@ -633,6 +633,15 @@ export function FacesGalleryTab() {
               fetchFaces();
               setSelectedFace(null);
             }}
+            onDelete={async (id) => {
+              // Delete color_labels first
+              await supabase.from('color_labels').delete().eq('face_image_id', id);
+              // Then delete face_image
+              const { error } = await supabase.from('face_images').delete().eq('id', id);
+              if (error) throw error;
+              toast({ title: 'Deleted', description: 'Face removed successfully' });
+              fetchFaces();
+            }}
             isAnalyzing={analyzingIds.has(selectedFace.id)}
           />
         )}
