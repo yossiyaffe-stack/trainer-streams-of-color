@@ -35,9 +35,11 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
   }, []);
 
   const fetchRecentPaintings = async () => {
+    // Fetch only user-uploaded paintings (exclude museum imports)
     const { data, error } = await supabase
       .from('paintings')
       .select('*')
+      .not('notes', 'ilike', '%Imported from%')
       .order('created_at', { ascending: false })
       .limit(12);
     
