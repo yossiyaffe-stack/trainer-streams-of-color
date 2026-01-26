@@ -290,6 +290,8 @@ export function PaletteGalleryTab() {
           painting={selectedPainting}
           onClose={() => setSelectedPainting(null)}
           onUpdate={handlePaintingUpdate}
+          onDelete={fetchPalettePaintings}
+          isPaletteContext={true}
         />
       )}
     </div>
