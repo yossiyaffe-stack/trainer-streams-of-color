@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Palette, Shirt, Sparkles } from 'lucide-react';
+import { Search, Palette, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -61,8 +61,8 @@ export function PaintingGrid() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {Array.from({ length: 8 }).map((_, i) => (
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+        {Array.from({ length: 16 }).map((_, i) => (
           <Skeleton key={i} className="aspect-[3/4] rounded-lg" />
         ))}
       </div>
@@ -121,32 +121,51 @@ export function PaintingGrid() {
         </div>
       )}
 
-      {/* Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      {/* Scroll hint arrow */}
+      {filteredPaintings.length > 12 && (
+        <motion.div 
+          className="flex flex-col items-center gap-1 py-2"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+        >
+          <span className="text-xs text-muted-foreground">Scroll for more</span>
+          <motion.div
+            animate={{ y: [0, 6, 0] }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+          >
+            <ChevronDown className="w-6 h-6 text-primary" />
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Denser Grid */}
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3">
         {filteredPaintings.map((painting, index) => (
           <motion.div
             key={painting.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: Math.min(index * 0.02, 0.3) }}
             onClick={() => setSelectedPainting(painting)}
             className="group cursor-pointer"
           >
-            <div className="relative aspect-[3/4] rounded-lg overflow-hidden border border-border bg-muted">
+            <div className="relative aspect-[3/4] rounded-lg overflow-hidden border border-border bg-muted hover:border-primary transition-colors">
               <img
                 src={painting.image_url}
                 alt={painting.title || 'Painting'}
                 className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                loading="lazy"
               />
               
               {/* Hover Overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                <div className="absolute bottom-0 left-0 right-0 p-3">
-                  <p className="font-serif text-white font-medium line-clamp-1">
+                <div className="absolute bottom-0 left-0 right-0 p-2">
+                  <p className="font-serif text-white text-xs font-medium line-clamp-1">
                     {painting.title || 'Untitled'}
                   </p>
                   {painting.artist && (
-                    <p className="text-white/70 text-sm line-clamp-1">
+                    <p className="text-white/70 text-[10px] line-clamp-1">
                       {painting.artist}
                     </p>
                   )}
@@ -156,29 +175,10 @@ export function PaintingGrid() {
               {/* Season Badge */}
               {painting.suggested_season && (
                 <Badge 
-                  className={`absolute top-2 right-2 ${SEASON_COLORS[painting.suggested_season] || 'bg-muted'}`}
+                  className={`absolute top-1 right-1 text-[10px] px-1.5 py-0.5 ${SEASON_COLORS[painting.suggested_season] || 'bg-muted'}`}
                 >
                   {painting.suggested_season}
                 </Badge>
-              )}
-            </div>
-
-            {/* Info below image */}
-            <div className="mt-2 space-y-1">
-              <p className="font-medium text-sm line-clamp-1">
-                {painting.title || 'Untitled'}
-              </p>
-              {painting.palette_effect && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" />
-                  {painting.palette_effect}
-                </p>
-              )}
-              {painting.fabrics && painting.fabrics.length > 0 && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Shirt className="w-3 h-3" />
-                  {painting.fabrics.slice(0, 2).join(', ')}
-                </p>
               )}
             </div>
           </motion.div>
