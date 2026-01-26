@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, Image, Loader2, Check, AlertCircle, X, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,7 @@ interface UploadingFile {
   status: 'pending' | 'uploading' | 'analyzing' | 'complete' | 'error';
   progress: number;
   error?: string;
-  paintingData?: Painting; // Store the saved painting data for viewing
+  paintingData?: Painting;
 }
 
 export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
@@ -27,6 +27,28 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedPainting, setSelectedPainting] = useState<Painting | null>(null);
+  const [recentPaintings, setRecentPaintings] = useState<Painting[]>([]);
+
+  // Load recent paintings from database on mount
+  useEffect(() => {
+    fetchRecentPaintings();
+  }, []);
+
+  const fetchRecentPaintings = async () => {
+    const { data, error } = await supabase
+      .from('paintings')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(12);
+    
+    if (data && !error) {
+      const paintings = data.map(p => ({
+        ...p,
+        ai_analysis: p.ai_analysis as PaintingAnalysis | null,
+      })) as Painting[];
+      setRecentPaintings(paintings);
+    }
+  };
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -163,9 +185,14 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
 
     setIsProcessing(false);
     
+    // Refresh recent paintings list
+    await fetchRecentPaintings();
+    
     const successCount = files.filter(f => f.status === 'complete').length;
     if (successCount > 0) {
-      toast.success(`Successfully processed ${successCount} painting(s)`);
+      toast.success(`Successfully processed ${successCount} painting(s) - saved to gallery!`);
+      // Clear the upload list after successful processing
+      setFiles([]);
       onUploadComplete?.();
     }
   };
@@ -175,7 +202,6 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
       const reader = new FileReader();
       reader.onload = () => {
         const result = reader.result as string;
-        // Remove the data URL prefix
         const base64 = result.split(',')[1];
         resolve(base64);
       };
@@ -186,6 +212,11 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
 
   const clearCompleted = () => {
     setFiles(prev => prev.filter(f => f.status !== 'complete'));
+  };
+
+  const handleDeletePainting = async () => {
+    await fetchRecentPaintings();
+    setSelectedPainting(null);
   };
 
   const pendingCount = files.filter(f => f.status === 'pending').length;
@@ -341,12 +372,52 @@ export function PaintingUpload({ onUploadComplete }: PaintingUploadProps) {
         </div>
       )}
 
-      {/* Detail Modal for completed paintings */}
+      {/* Recently Saved Paintings */}
+      {recentPaintings.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium text-lg">📚 Gallery ({recentPaintings.length} saved)</h3>
+            <p className="text-sm text-muted-foreground">Click any painting to view details</p>
+          </div>
+          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {recentPaintings.map((painting) => (
+              <motion.div
+                key={painting.id}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                whileHover={{ scale: 1.02 }}
+                className="relative aspect-[3/4] rounded-lg overflow-hidden border border-border cursor-pointer group hover:border-primary hover:shadow-lg transition-all"
+                onClick={() => setSelectedPainting(painting)}
+              >
+                <img
+                  src={painting.thumbnail_url || painting.image_url}
+                  alt={painting.title || 'Painting'}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute bottom-0 left-0 right-0 p-2">
+                    <p className="text-white text-xs font-medium truncate">{painting.title || 'Untitled'}</p>
+                    {painting.suggested_season && (
+                      <span className="text-white/80 text-[10px]">{painting.suggested_season}</span>
+                    )}
+                  </div>
+                </div>
+                {painting.status === 'analyzed' && (
+                  <div className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full" />
+                )}
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Detail Modal */}
       <AnimatePresence>
         {selectedPainting && (
           <PaintingDetailModal
             painting={selectedPainting}
             onClose={() => setSelectedPainting(null)}
+            onDelete={handleDeletePainting}
           />
         )}
       </AnimatePresence>
