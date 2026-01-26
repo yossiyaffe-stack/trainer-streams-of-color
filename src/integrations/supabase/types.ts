@@ -113,6 +113,96 @@ export type Database = {
         }
         Relationships: []
       }
+      subtypes: {
+        Row: {
+          artists: string[] | null
+          avoid_colors: string[] | null
+          best_for: string[] | null
+          created_at: string | null
+          description: string | null
+          designers: string[] | null
+          display_order: number | null
+          eras: string[] | null
+          fabrics_avoid: string[] | null
+          fabrics_good: string[] | null
+          fabrics_perfect: string[] | null
+          id: string
+          is_active: boolean | null
+          jewelry_metals: string[] | null
+          jewelry_stones: string[] | null
+          jewelry_styles: string[] | null
+          key_colors: string[] | null
+          makeup_cheek: string[] | null
+          makeup_eye: string[] | null
+          makeup_lip: string[] | null
+          name: string
+          palette_effect: string | null
+          prints: string[] | null
+          season: string
+          silhouettes: string[] | null
+          slug: string
+          updated_at: string | null
+        }
+        Insert: {
+          artists?: string[] | null
+          avoid_colors?: string[] | null
+          best_for?: string[] | null
+          created_at?: string | null
+          description?: string | null
+          designers?: string[] | null
+          display_order?: number | null
+          eras?: string[] | null
+          fabrics_avoid?: string[] | null
+          fabrics_good?: string[] | null
+          fabrics_perfect?: string[] | null
+          id?: string
+          is_active?: boolean | null
+          jewelry_metals?: string[] | null
+          jewelry_stones?: string[] | null
+          jewelry_styles?: string[] | null
+          key_colors?: string[] | null
+          makeup_cheek?: string[] | null
+          makeup_eye?: string[] | null
+          makeup_lip?: string[] | null
+          name: string
+          palette_effect?: string | null
+          prints?: string[] | null
+          season: string
+          silhouettes?: string[] | null
+          slug: string
+          updated_at?: string | null
+        }
+        Update: {
+          artists?: string[] | null
+          avoid_colors?: string[] | null
+          best_for?: string[] | null
+          created_at?: string | null
+          description?: string | null
+          designers?: string[] | null
+          display_order?: number | null
+          eras?: string[] | null
+          fabrics_avoid?: string[] | null
+          fabrics_good?: string[] | null
+          fabrics_perfect?: string[] | null
+          id?: string
+          is_active?: boolean | null
+          jewelry_metals?: string[] | null
+          jewelry_stones?: string[] | null
+          jewelry_styles?: string[] | null
+          key_colors?: string[] | null
+          makeup_cheek?: string[] | null
+          makeup_eye?: string[] | null
+          makeup_lip?: string[] | null
+          name?: string
+          palette_effect?: string | null
+          prints?: string[] | null
+          season?: string
+          silhouettes?: string[] | null
+          slug?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
