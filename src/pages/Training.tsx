@@ -6,7 +6,11 @@ import { PhotoUpload } from '@/components/training/PhotoUpload';
 import { AnalysisResult } from '@/components/training/AnalysisResult';
 import { StatsOverview } from '@/components/training/StatsOverview';
 import { BulkTrainingTab } from '@/components/training/BulkTrainingTab';
+import { PhotoGridView } from '@/components/training/PhotoGridView';
+import { ProgressDashboard } from '@/components/training/ProgressDashboard';
+import { BatchReanalysis } from '@/components/training/BatchReanalysis';
 import { SAMPLE_SUBTYPES } from '@/data/subtypes';
+import { BulkPhoto } from '@/types/training';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { 
@@ -17,7 +21,9 @@ import {
   BarChart3,
   Play,
   Loader2,
-  Table2
+  Table2,
+  LayoutGrid,
+  FlaskConical
 } from 'lucide-react';
 
 export default function Training() {
@@ -25,6 +31,23 @@ export default function Training() {
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
+  
+  // Shared photo state for grid view and re-analysis
+  const [trainingPhotos, setTrainingPhotos] = useState<BulkPhoto[]>([]);
+  
+  const handleUpdatePhoto = (id: string, updates: Partial<BulkPhoto>) => {
+    setTrainingPhotos(prev => prev.map(p => 
+      p.id === id ? { ...p, ...updates } : p
+    ));
+  };
+  
+  const handleBatchAction = (action: 'confirm' | 'analyze', ids: string[]) => {
+    if (action === 'confirm') {
+      setTrainingPhotos(prev => prev.map(p => 
+        ids.includes(p.id) ? { ...p, status: 'confirmed', confirmedSubtype: p.aiPrediction } : p
+      ));
+    }
+  };
 
   const handleAnalyze = async () => {
     if (!selectedPhoto) return;
@@ -93,27 +116,27 @@ export default function Training() {
             <TabsList className="bg-muted/50 p-1 h-auto flex-wrap">
               <TabsTrigger value="analyze" className="gap-2 data-[state=active]:bg-background">
                 <Camera className="w-4 h-4" />
-                Analyze Photo
+                Analyze
               </TabsTrigger>
               <TabsTrigger value="bulk" className="gap-2 data-[state=active]:bg-background">
                 <Table2 className="w-4 h-4" />
                 Bulk Training
               </TabsTrigger>
-              <TabsTrigger value="review" className="gap-2 data-[state=active]:bg-background">
-                <CheckSquare className="w-4 h-4" />
-                Review Queue
-              </TabsTrigger>
-              <TabsTrigger value="clusters" className="gap-2 data-[state=active]:bg-background">
-                <Sparkles className="w-4 h-4" />
-                New Subtypes
-              </TabsTrigger>
-              <TabsTrigger value="subtypes" className="gap-2 data-[state=active]:bg-background">
-                <BookOpen className="w-4 h-4" />
-                Manage Subtypes
+              <TabsTrigger value="grid" className="gap-2 data-[state=active]:bg-background">
+                <LayoutGrid className="w-4 h-4" />
+                Grid View
               </TabsTrigger>
               <TabsTrigger value="metrics" className="gap-2 data-[state=active]:bg-background">
                 <BarChart3 className="w-4 h-4" />
-                Metrics
+                Dashboard
+              </TabsTrigger>
+              <TabsTrigger value="reanalysis" className="gap-2 data-[state=active]:bg-background">
+                <FlaskConical className="w-4 h-4" />
+                Re-Analysis
+              </TabsTrigger>
+              <TabsTrigger value="subtypes" className="gap-2 data-[state=active]:bg-background">
+                <BookOpen className="w-4 h-4" />
+                Subtypes
               </TabsTrigger>
             </TabsList>
 
@@ -216,22 +239,27 @@ export default function Training() {
               </div>
             </TabsContent>
 
-            {/* Metrics Tab */}
+            {/* Grid View Tab */}
+            <TabsContent value="grid" className="space-y-6">
+              <PhotoGridView 
+                photos={trainingPhotos}
+                onUpdatePhoto={handleUpdatePhoto}
+                onBatchAction={handleBatchAction}
+              />
+            </TabsContent>
+
+            {/* Metrics/Dashboard Tab */}
             <TabsContent value="metrics" className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="p-6 rounded-2xl bg-card border border-border">
-                  <h3 className="font-serif text-xl font-semibold mb-4">Accuracy Over Time</h3>
-                  <div className="h-48 flex items-center justify-center bg-muted/30 rounded-xl">
-                    <p className="text-muted-foreground">Chart coming soon</p>
-                  </div>
-                </div>
-                <div className="p-6 rounded-2xl bg-card border border-border">
-                  <h3 className="font-serif text-xl font-semibold mb-4">Season Distribution</h3>
-                  <div className="h-48 flex items-center justify-center bg-muted/30 rounded-xl">
-                    <p className="text-muted-foreground">Chart coming soon</p>
-                  </div>
-                </div>
-              </div>
+              <ProgressDashboard photos={trainingPhotos} subtypes={SAMPLE_SUBTYPES} />
+            </TabsContent>
+
+            {/* Re-Analysis Tab */}
+            <TabsContent value="reanalysis" className="space-y-6">
+              <BatchReanalysis 
+                photos={trainingPhotos} 
+                subtypes={SAMPLE_SUBTYPES}
+                modelVersion={{ version: '1.0', trainedOn: trainingPhotos.filter(p => p.status === 'confirmed').length }}
+              />
             </TabsContent>
           </Tabs>
         </div>
