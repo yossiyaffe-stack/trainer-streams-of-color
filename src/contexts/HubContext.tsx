@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, useEffect, ReactNode } from 'react';
 import type { Subtype } from '@/data/subtypes';
 import { ALL_SUBTYPES } from '@/data/subtypes';
 import type { 
@@ -9,6 +9,8 @@ import type {
   PaintingStats, 
   HubSettings 
 } from '@/types/hub';
+
+const SELECTED_PHOTOS_KEY = 'hub-selected-photos';
 
 interface HubContextValue {
   // Mode
@@ -44,6 +46,13 @@ interface HubContextValue {
   togglePaintingSubtype: (paintingId: string, subtypeId: string) => void;
   deletePaintings: (ids: string[]) => void;
   deletePhotos: (ids: string[]) => void;
+
+  // Photo selection (persisted)
+  selectedPhotoIds: Set<string>;
+  togglePhotoSelection: (id: string) => void;
+  selectAllPhotos: (ids: string[]) => void;
+  clearPhotoSelection: () => void;
+  isPhotoSelected: (id: string) => boolean;
 }
 const HubContext = createContext<HubContextValue | null>(null);
 
@@ -72,6 +81,25 @@ export function HubProvider({ children }: { children: ReactNode }) {
   const [photos, setPhotos] = useState<TrainingPhoto[]>([]);
   const [photoAnalyzing, setPhotoAnalyzing] = useState(false);
   const [photoProgress, setPhotoProgress] = useState({ current: 0, total: 0 });
+
+  // Photo selection - persisted in localStorage
+  const [selectedPhotoIds, setSelectedPhotoIds] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem(SELECTED_PHOTOS_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return new Set(Array.isArray(parsed) ? parsed : []);
+      }
+    } catch {
+      // Ignore parse errors
+    }
+    return new Set();
+  });
+
+  // Persist selections to localStorage
+  useEffect(() => {
+    localStorage.setItem(SELECTED_PHOTOS_KEY, JSON.stringify([...selectedPhotoIds]));
+  }, [selectedPhotoIds]);
 
   // Painting state  
   const [paintings, setPaintings] = useState<HubPainting[]>([]);
@@ -228,7 +256,38 @@ export function HubProvider({ children }: { children: ReactNode }) {
 
   const deletePhotos = useCallback((ids: string[]) => {
     setPhotos(prev => prev.filter(p => !ids.includes(p.id)));
+    // Also remove deleted photos from selection
+    setSelectedPhotoIds(prev => {
+      const next = new Set(prev);
+      ids.forEach(id => next.delete(id));
+      return next;
+    });
   }, []);
+
+  // Photo selection operations
+  const togglePhotoSelection = useCallback((id: string) => {
+    setSelectedPhotoIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const selectAllPhotos = useCallback((ids: string[]) => {
+    setSelectedPhotoIds(new Set(ids));
+  }, []);
+
+  const clearPhotoSelection = useCallback(() => {
+    setSelectedPhotoIds(new Set());
+  }, []);
+
+  const isPhotoSelected = useCallback((id: string) => {
+    return selectedPhotoIds.has(id);
+  }, [selectedPhotoIds]);
 
   const value: HubContextValue = {
     mode, setMode,
@@ -240,7 +299,8 @@ export function HubProvider({ children }: { children: ReactNode }) {
     deletePhotos,
     paintings, paintingStats, paintingAnalyzing, paintingProgress,
     addPaintings, setPaintings, updatePainting, togglePaintingSubtype,
-    deletePaintings
+    deletePaintings,
+    selectedPhotoIds, togglePhotoSelection, selectAllPhotos, clearPhotoSelection, isPhotoSelected
   };
 
   return (
