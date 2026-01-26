@@ -11,6 +11,7 @@ import { ProgressDashboard } from '@/components/training/ProgressDashboard';
 import { BatchReanalysis } from '@/components/training/BatchReanalysis';
 import { SubtypeManager } from '@/components/training/SubtypeManager';
 import { HuggingFaceImport } from '@/components/training/HuggingFaceImport';
+import { FacesGalleryTab } from '@/components/training/FacesGalleryTab';
 import { SAMPLE_SUBTYPES } from '@/data/subtypes';
 import { BulkPhoto } from '@/types/training';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -27,11 +28,13 @@ import {
   LayoutGrid,
   FlaskConical,
   Palette,
-  Database
+  Database,
+  Users,
+  Images
 } from 'lucide-react';
 
 export default function Training() {
-  const [activeTab, setActiveTab] = useState('analyze');
+  const [activeTab, setActiveTab] = useState('gallery');
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
@@ -136,6 +139,10 @@ export default function Training() {
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="bg-muted/50 p-1 h-auto flex-wrap">
+              <TabsTrigger value="gallery" className="gap-2 data-[state=active]:bg-background">
+                <Images className="w-4 h-4" />
+                Gallery
+              </TabsTrigger>
               <TabsTrigger value="analyze" className="gap-2 data-[state=active]:bg-background">
                 <Camera className="w-4 h-4" />
                 Analyze
@@ -165,6 +172,11 @@ export default function Training() {
                 Import Datasets
               </TabsTrigger>
             </TabsList>
+
+            {/* Gallery Tab with Filters */}
+            <TabsContent value="gallery" className="space-y-6">
+              <FacesGalleryTab />
+            </TabsContent>
 
             {/* Analyze Photo Tab */}
             <TabsContent value="analyze" className="space-y-6">
