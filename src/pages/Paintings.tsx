@@ -4,15 +4,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
 import { PaintingUpload } from '@/components/paintings/PaintingUpload';
-import { PaintingGrid } from '@/components/paintings/PaintingGrid';
-import { MuseumPaintingsGrid } from '@/components/paintings/MuseumPaintingsGrid';
-import { MuseumImportTab } from '@/components/hub/paintings/MuseumImportTab';
+import { UnifiedGallery } from '@/components/paintings/UnifiedGallery';
 import { PaletteGalleryTab } from '@/components/paintings/PaletteGalleryTab';
 import { HubProvider } from '@/contexts/HubContext';
-import { Upload, Grid3X3, Library, Building2, Image, Star } from 'lucide-react';
+import { Upload, Grid3X3, Library, Star } from 'lucide-react';
 
 export default function Paintings() {
-  const [activeTab, setActiveTab] = useState('upload');
+  const [activeTab, setActiveTab] = useState('gallery');
   const [refreshKey, setRefreshKey] = useState(0);
 
   const handleUploadComplete = () => {
@@ -41,38 +39,24 @@ export default function Paintings() {
                     </div>
                   </div>
                   
-                  <TabsList className="grid grid-cols-5 h-12 bg-card border-2 border-primary/30 shadow-lg rounded-xl p-1">
+                  <TabsList className="grid grid-cols-3 h-12 bg-card border-2 border-primary/30 shadow-lg rounded-xl p-1">
                     <TabsTrigger 
                       value="upload" 
-                      className="flex items-center gap-2 px-3 font-semibold rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+                      className="flex items-center gap-2 px-4 font-semibold rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
                     >
                       <Upload className="w-4 h-4" />
                       <span className="hidden sm:inline">Upload</span>
                     </TabsTrigger>
                     <TabsTrigger 
-                      value="museum" 
-                      className="flex items-center gap-2 px-3 font-semibold rounded-lg data-[state=active]:bg-accent data-[state=active]:text-accent-foreground data-[state=active]:shadow-md transition-all relative"
-                    >
-                      <Building2 className="w-4 h-4" />
-                      <span className="hidden sm:inline">Import</span>
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="museum-gallery" 
-                      className="flex items-center gap-2 px-3 font-semibold rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
-                    >
-                      <Image className="w-4 h-4" />
-                      <span className="hidden sm:inline">Museum</span>
-                    </TabsTrigger>
-                    <TabsTrigger 
                       value="gallery" 
-                      className="flex items-center gap-2 px-3 font-semibold rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+                      className="flex items-center gap-2 px-4 font-semibold rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
                     >
                       <Grid3X3 className="w-4 h-4" />
                       <span className="hidden sm:inline">Gallery</span>
                     </TabsTrigger>
                     <TabsTrigger 
                       value="palette" 
-                      className="flex items-center gap-2 px-3 font-semibold rounded-lg data-[state=active]:bg-amber-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+                      className="flex items-center gap-2 px-4 font-semibold rounded-lg data-[state=active]:bg-amber-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
                     >
                       <Star className="w-4 h-4" />
                       <span className="hidden sm:inline">Palette</span>
@@ -95,16 +79,8 @@ export default function Paintings() {
                   <PaintingUpload onUploadComplete={handleUploadComplete} />
                 </TabsContent>
 
-                <TabsContent value="museum" className="mt-0">
-                  <MuseumImportTab />
-                </TabsContent>
-
-                <TabsContent value="museum-gallery" className="mt-0">
-                  <MuseumPaintingsGrid />
-                </TabsContent>
-
                 <TabsContent value="gallery" className="mt-0">
-                  <PaintingGrid key={refreshKey} />
+                  <UnifiedGallery key={refreshKey} />
                 </TabsContent>
 
                 <TabsContent value="palette" className="mt-0">
