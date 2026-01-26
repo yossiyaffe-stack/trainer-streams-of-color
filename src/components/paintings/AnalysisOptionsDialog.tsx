@@ -167,7 +167,7 @@ export function AnalysisOptionsDialog({
                       id={option.id}
                       checked={selectedOptions.includes(option.id)}
                       onCheckedChange={() => toggleOption(option.id)}
-                      className="h-6 w-6"
+                      className="h-6 w-6 border-2 border-muted-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                     />
                     <div className={`p-2 rounded-lg ${
                       selectedOptions.includes(option.id) ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
