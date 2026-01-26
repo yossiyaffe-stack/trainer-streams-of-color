@@ -37,6 +37,24 @@ const SEASON_COLORS: Record<string, string> = {
   Winter: 'bg-purple-100 text-purple-800',
 };
 
+const QUICK_FILTERS = [
+  { label: '👗 Gowns & Dresses', query: 'gown dress' },
+  { label: '👸 Portraits', query: 'portrait' },
+  { label: '🎨 Renaissance', query: 'renaissance' },
+  { label: '💎 Jewelry', query: 'jewels jewelry pearls' },
+  { label: '🌸 Romantic Era', query: 'romantic' },
+  { label: '🖼️ Pre-Raphaelite', query: 'pre-raphaelite' },
+  { label: '👑 Nobility', query: 'duchess queen noble' },
+  { label: '🌺 Impressionist', query: 'impressionist' },
+];
+
+const SEASON_FILTERS = [
+  { label: 'Spring', emoji: '🌷' },
+  { label: 'Summer', emoji: '☀️' },
+  { label: 'Autumn', emoji: '🍂' },
+  { label: 'Winter', emoji: '❄️' },
+];
+
 const ITEMS_PER_PAGE_OPTIONS = [20, 40, 60, 100];
 
 export function UnifiedGallery() {
@@ -237,6 +255,45 @@ export function UnifiedGallery() {
           <span className="text-sm text-muted-foreground">
             {filteredPaintings.length} paintings
           </span>
+        </div>
+      </div>
+
+      {/* Quick Filters */}
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-2">
+          {QUICK_FILTERS.map(qf => (
+            <Badge
+              key={qf.query}
+              variant={searchQuery === qf.query ? 'default' : 'outline'}
+              className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors px-2 py-1 text-xs"
+              onClick={() => setSearchQuery(searchQuery === qf.query ? '' : qf.query)}
+            >
+              {qf.label}
+            </Badge>
+          ))}
+        </div>
+        <div className="flex gap-2 items-center">
+          <span className="text-xs text-muted-foreground">By Season:</span>
+          {SEASON_FILTERS.map(s => (
+            <Badge
+              key={s.label}
+              variant={selectedSeason === s.label ? 'default' : 'secondary'}
+              className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors text-xs"
+              onClick={() => setSelectedSeason(selectedSeason === s.label ? null : s.label)}
+            >
+              {s.emoji} {s.label}
+            </Badge>
+          ))}
+          {(searchQuery || selectedSeason) && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-6 text-xs"
+              onClick={() => { setSearchQuery(''); setSelectedSeason(null); }}
+            >
+              Clear filters
+            </Button>
+          )}
         </div>
       </div>
 
