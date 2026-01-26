@@ -1,11 +1,15 @@
 import { useState, useMemo } from 'react';
 import { useHub } from '@/contexts/HubContext';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { StatusDot } from '../StatusDot';
 import { cn } from '@/lib/utils';
 
 export function PhotoGridTab() {
-  const { photos, subtypes, confirmPhoto, confirmPhotoCorrect } = useHub();
+  const { 
+    photos, subtypes, confirmPhoto, confirmPhotoCorrect,
+    selectedPhotoIds, togglePhotoSelection, selectAllPhotos, clearPhotoSelection, isPhotoSelected
+  } = useHub();
   const [filter, setFilter] = useState<'analyzed' | 'confirmed' | 'all'>('analyzed');
   const [viewSize, setViewSize] = useState<'small' | 'medium' | 'large'>('medium');
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -28,11 +32,22 @@ export function PhotoGridTab() {
 
   const expandedPhoto = expanded ? photos.find(p => p.id === expanded) : null;
 
+  const selectedInView = filtered.filter(p => isPhotoSelected(p.id)).length;
+  const allSelectedInView = filtered.length > 0 && selectedInView === filtered.length;
+
+  const handleSelectAll = () => {
+    if (allSelectedInView) {
+      clearPhotoSelection();
+    } else {
+      selectAllPhotos(filtered.map(p => p.id));
+    }
+  };
+
   return (
     <div className="h-full flex flex-col">
       {/* Toolbar */}
       <div className="bg-card border-b p-4 flex items-center justify-between">
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           {(['analyzed', 'confirmed', 'all'] as const).map(f => (
             <Button
               key={f}
@@ -43,6 +58,16 @@ export function PhotoGridTab() {
               {f === 'analyzed' ? 'Needs Review' : f.charAt(0).toUpperCase() + f.slice(1)}
             </Button>
           ))}
+          <div className="ml-4 flex items-center gap-2">
+            <Checkbox 
+              id="select-all"
+              checked={allSelectedInView}
+              onCheckedChange={handleSelectAll}
+            />
+            <label htmlFor="select-all" className="text-sm text-muted-foreground cursor-pointer">
+              {selectedInView > 0 ? `${selectedInView} selected` : 'Select all'}
+            </label>
+          </div>
         </div>
         <div className="flex items-center gap-4">
           <span className="text-sm text-muted-foreground">{filtered.length} photos</span>
@@ -69,21 +94,40 @@ export function PhotoGridTab() {
           {filtered.map(photo => (
             <div 
               key={photo.id} 
-              onClick={() => setExpanded(photo.id)}
               className={cn(
                 'relative rounded-lg overflow-hidden cursor-pointer hover:scale-105 transition-transform border-2',
-                photo.status === 'confirmed' 
-                  ? photo.confirmedSubtype?.id === photo.aiPrediction?.id 
-                    ? 'border-success' 
-                    : 'border-warning'
-                  : (photo.aiConfidence ?? 0) >= 80 
-                    ? 'border-success/50' 
-                    : (photo.aiConfidence ?? 0) >= 50 
-                      ? 'border-warning/50' 
-                      : 'border-destructive/50'
+                isPhotoSelected(photo.id)
+                  ? 'ring-2 ring-primary ring-offset-2'
+                  : photo.status === 'confirmed' 
+                    ? photo.confirmedSubtype?.id === photo.aiPrediction?.id 
+                      ? 'border-success' 
+                      : 'border-warning'
+                    : (photo.aiConfidence ?? 0) >= 80 
+                      ? 'border-success/50' 
+                      : (photo.aiConfidence ?? 0) >= 50 
+                        ? 'border-warning/50' 
+                        : 'border-destructive/50'
               )}
             >
-              <img src={photo.preview} alt="" className={cn(thumbSizes[viewSize], 'object-cover')} />
+              {/* Selection checkbox */}
+              <div 
+                className="absolute top-1 left-1 z-10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  togglePhotoSelection(photo.id);
+                }}
+              >
+                <Checkbox 
+                  checked={isPhotoSelected(photo.id)}
+                  className="bg-background/80"
+                />
+              </div>
+              <img 
+                src={photo.preview} 
+                alt="" 
+                className={cn(thumbSizes[viewSize], 'object-cover')}
+                onClick={() => setExpanded(photo.id)}
+              />
               <StatusDot status={photo.status} confidence={photo.aiConfidence} />
               {viewSize === 'large' && photo.aiPrediction && (
                 <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs p-1 truncate">
