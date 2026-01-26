@@ -152,11 +152,19 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
     }
 
     try {
+      // Also add to palette when classifying with a subtype
+      const currentTags = painting.tags || [];
+      const updatedTags = currentTags.includes('Palette Painting') 
+        ? currentTags 
+        : [...currentTags, 'Palette Painting'];
+
       const { error } = await supabase
         .from('paintings')
         .update({
           palette_effect: subtype.name,
           suggested_season: subtype.season.charAt(0).toUpperCase() + subtype.season.slice(1),
+          status: 'palette',
+          tags: updatedTags,
         })
         .eq('id', painting.id);
 
@@ -166,12 +174,18 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
         ...prev,
         palette_effect: subtype.name,
         suggested_season: subtype.season.charAt(0).toUpperCase() + subtype.season.slice(1),
+        status: 'palette',
+        tags: updatedTags,
       }));
 
+      setIsPalettePainting(true);
+
       toast({
-        title: 'Subtype Assigned',
+        title: '🎨 Classified & Added to Palette',
         description: `Set to ${subtype.name} (${subtype.season})`,
       });
+
+      onUpdate?.();
     } catch (err) {
       toast({
         title: 'Save Failed',
