@@ -153,14 +153,60 @@ Deno.serve(async (req) => {
           if (image.dataset === 'celebahq') source = 'celeba_hq';
           else if (image.dataset === 'ffhq') source = 'ffhq';
 
+          // Download image from HuggingFace and store in Supabase Storage
+          // This prevents issues with expired signed URLs
+          let storagePath = image.url;
+          let thumbnailPath = image.url;
+          
+          try {
+            console.log(`Downloading image from HuggingFace: ${image.sourceId}`);
+            const imageResponse = await fetch(image.url);
+            
+            if (imageResponse.ok) {
+              const imageBlob = await imageResponse.blob();
+              const arrayBuffer = await imageBlob.arrayBuffer();
+              const uint8Array = new Uint8Array(arrayBuffer);
+              
+              // Generate storage path
+              const fileName = `${source}/${image.sourceId}.jpg`;
+              
+              // Upload to Supabase Storage
+              const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('face-images')
+                .upload(fileName, uint8Array, {
+                  contentType: 'image/jpeg',
+                  upsert: true,
+                });
+              
+              if (uploadError) {
+                console.error('Storage upload error:', uploadError);
+                // Fall back to HuggingFace URL (will expire but at least imports)
+              } else {
+                // Get public URL
+                const { data: urlData } = supabase.storage
+                  .from('face-images')
+                  .getPublicUrl(fileName);
+                
+                storagePath = urlData.publicUrl;
+                thumbnailPath = urlData.publicUrl;
+                console.log(`Image stored at: ${storagePath}`);
+              }
+            } else {
+              console.warn(`Failed to download image ${image.sourceId}: ${imageResponse.status}`);
+            }
+          } catch (downloadErr) {
+            console.error('Image download error:', downloadErr);
+            // Fall back to original URL
+          }
+
           // Insert into face_images table
           const { data: faceImage, error: insertError } = await supabase
             .from('face_images')
             .insert({
               source,
               source_id: image.sourceId,
-              storage_path: image.url, // Store the HuggingFace URL directly
-              thumbnail_path: image.url,
+              storage_path: storagePath,
+              thumbnail_path: thumbnailPath,
               original_filename: `${image.dataset}_${image.sourceId}.jpg`,
               width: image.width,
               height: image.height,
