@@ -12,8 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Loader2, Palette, Sparkles, Crown, Flower2, Sun, Leaf, Snowflake, X, ArrowRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Palette, Sparkles, Crown, Flower2, Sun, Leaf, Snowflake, X, ArrowRight, RefreshCw, CloudDownload } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useHubSync, SyncType } from '@/hooks/useHubSync';
 
 interface Subtype {
   id: string;
@@ -373,6 +374,15 @@ export function SubtypeManager() {
     );
   }
 
+  const { syncFromHub, isSyncing } = useHubSync();
+
+  const handleSync = async (type: SyncType = 'all') => {
+    const result = await syncFromHub(type);
+    if (result.success) {
+      fetchSubtypes(); // Refresh the list after sync
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -383,12 +393,25 @@ export function SubtypeManager() {
             {subtypes.length} subtypes across all seasons
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={openCreateDialog}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Subtype
-            </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => handleSync('all')}
+            disabled={isSyncing}
+          >
+            {isSyncing ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <CloudDownload className="w-4 h-4 mr-2" />
+            )}
+            Sync from Hub
+          </Button>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={openCreateDialog}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Subtype
+              </Button>
           </DialogTrigger>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden bg-card">
             <DialogHeader>
@@ -605,8 +628,8 @@ export function SubtypeManager() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
-
       {/* 3-Tier Navigation */}
       <Card className="p-6">
         <div className="space-y-6">
