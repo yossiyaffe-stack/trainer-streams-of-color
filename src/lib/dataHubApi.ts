@@ -246,6 +246,7 @@ export async function getSephirot(): Promise<HubSephirot[] | null> {
 
 export interface FaceConclusion {
   source: 'training_website';
+  purpose: 'methodology_training';
   face_image_id: string;
   storage_path: string;
   confirmed_season: string;
@@ -262,6 +263,8 @@ export interface FaceConclusion {
   verified_by: string;
   verified_at: string;
   notes?: string;
+  had_ai_disagreement?: boolean;
+  disagreement_reason?: string;
 }
 
 export interface PaintingConclusion {

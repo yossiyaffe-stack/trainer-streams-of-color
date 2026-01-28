@@ -302,8 +302,12 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
       photoUrl = data.publicUrl;
     }
 
+    const isDisagreement = label?.ai_predicted_subtype && 
+      subtypeName !== label.ai_predicted_subtype;
+
     const conclusion: FaceConclusion = {
       source: 'training_website',
+      purpose: 'methodology_training',
       face_image_id: face.id,
       storage_path: photoUrl,
       confirmed_season: editFields.confirmed_season || label?.confirmed_season || subtype.season.toLowerCase(),
@@ -320,6 +324,8 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
       verified_by: 'expert',
       verified_at: new Date().toISOString(),
       notes: editFields.notes || label?.notes || undefined,
+      had_ai_disagreement: isDisagreement || false,
+      disagreement_reason: isDisagreement ? (editFields.disagreement_notes || undefined) : undefined,
     };
 
     const success = await pushFaceConclusion(conclusion);
