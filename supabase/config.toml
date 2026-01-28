@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.methodology-export]
 verify_jwt = false
+
+[functions.sync-vocabulary]
+verify_jwt = false
