@@ -54,16 +54,19 @@ export default function Training() {
   useEffect(() => {
     async function fetchStats() {
       // Fetch from the v_dataset_stats view
-      const { data: viewData } = await supabase
+      const { data: viewData, error } = await supabase
         .from('v_dataset_stats')
         .select('*')
-        .maybeSingle();
+        .limit(1);
       
-      if (viewData) {
-        const total = Number(viewData.total_images) || 0;
-        const confirmed = Number(viewData.expert_verified || 0) + Number(viewData.nechama_verified || 0);
-        const trainingReady = Number(viewData.training_ready) || 0;
-        const needsReview = Number(viewData.needs_review) || 0;
+      console.log('Stats fetch result:', { viewData, error });
+      
+      if (viewData && viewData.length > 0) {
+        const stats = viewData[0];
+        const total = Number(stats.total_images) || 0;
+        const confirmed = Number(stats.expert_verified || 0) + Number(stats.nechama_verified || 0);
+        const trainingReady = Number(stats.training_ready) || 0;
+        const needsReview = Number(stats.needs_review) || 0;
         
         setDbStats({
           totalPhotos: total,
