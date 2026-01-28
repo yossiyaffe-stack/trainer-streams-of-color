@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Toggle } from '@/components/ui/toggle';
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -33,7 +33,7 @@ export function PaletteGalleryTab() {
   const [paintings, setPaintings] = useState<Painting[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [seasonFilter, setSeasonFilter] = useState<string>('all');
+  const [selectedSeasons, setSelectedSeasons] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedPainting, setSelectedPainting] = useState<Painting | null>(null);
 
@@ -68,6 +68,15 @@ export function PaletteGalleryTab() {
     fetchPalettePaintings();
   }, []);
 
+  const toggleSeason = (season: string) => {
+    setSelectedSeasons(prev => {
+      const next = new Set(prev);
+      if (next.has(season)) next.delete(season);
+      else next.add(season);
+      return next;
+    });
+  };
+
   const filteredPaintings = paintings.filter(p => {
     const matchesSearch = !search || 
       p.title?.toLowerCase().includes(search.toLowerCase()) ||
@@ -75,8 +84,8 @@ export function PaletteGalleryTab() {
       p.palette_effect?.toLowerCase().includes(search.toLowerCase()) ||
       p.tags?.some(t => t.toLowerCase().includes(search.toLowerCase()));
     
-    const matchesSeason = seasonFilter === 'all' || 
-      p.suggested_season?.toLowerCase() === seasonFilter.toLowerCase();
+    const matchesSeason = selectedSeasons.size === 0 || 
+      (p.suggested_season && selectedSeasons.has(p.suggested_season.toLowerCase()));
     
     return matchesSearch && matchesSeason;
   });
@@ -163,18 +172,25 @@ export function PaletteGalleryTab() {
           />
         </div>
         
-        <Select value={seasonFilter} onValueChange={setSeasonFilter}>
-          <SelectTrigger className="w-full sm:w-40">
-            <SelectValue placeholder="Season" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Seasons</SelectItem>
-            <SelectItem value="spring">🌸 Spring</SelectItem>
-            <SelectItem value="summer">☀️ Summer</SelectItem>
-            <SelectItem value="autumn">🍂 Autumn</SelectItem>
-            <SelectItem value="winter">❄️ Winter</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { key: 'spring', emoji: '🌸', label: 'Spring' },
+            { key: 'summer', emoji: '☀️', label: 'Summer' },
+            { key: 'autumn', emoji: '🍂', label: 'Autumn' },
+            { key: 'winter', emoji: '❄️', label: 'Winter' },
+          ].map(season => (
+            <Toggle
+              key={season.key}
+              pressed={selectedSeasons.has(season.key)}
+              onPressedChange={() => toggleSeason(season.key)}
+              variant="outline"
+              size="sm"
+              className="gap-1.5 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+            >
+              {season.emoji} {season.label}
+            </Toggle>
+          ))}
+        </div>
 
         {selectedIds.size > 0 && (
           <AlertDialog>
