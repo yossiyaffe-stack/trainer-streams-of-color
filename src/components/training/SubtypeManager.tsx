@@ -12,8 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Loader2, Palette, Sparkles, Crown, Flower2, Sun, Leaf, Snowflake, X, ArrowRight, RefreshCw, CloudDownload } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Palette, Sparkles, Crown, Flower2, Sun, Leaf, Snowflake, X, ArrowRight, RefreshCw, CloudDownload, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useHubSync, SyncType } from '@/hooks/useHubSync';
 
 interface Subtype {
@@ -392,6 +393,11 @@ export function SubtypeManager() {
           <h2 className="text-2xl font-serif font-bold">Subtype Management</h2>
           <p className="text-sm text-muted-foreground">
             {subtypes.length} subtypes across all seasons
+            {subtypes.filter(s => !s.description?.trim()).length > 0 && (
+              <span className="ml-2 text-amber-600 dark:text-amber-400">
+                • {subtypes.filter(s => !s.description?.trim()).length} missing definitions
+              </span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -858,14 +864,28 @@ function SubtypeCard({
     >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="text-base">{subtype.name}</CardTitle>
-            <CardDescription className="text-xs">
-              {subtype.time_period && (
-                <span className="capitalize">{subtype.time_period} • </span>
-              )}
-              <span className="font-mono">{subtype.slug}</span>
-            </CardDescription>
+          <div className="flex items-start gap-2">
+            {!subtype.description?.trim() && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Missing definition</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            <div>
+              <CardTitle className="text-base">{subtype.name}</CardTitle>
+              <CardDescription className="text-xs">
+                {subtype.time_period && (
+                  <span className="capitalize">{subtype.time_period} • </span>
+                )}
+                <span className="font-mono">{subtype.slug}</span>
+              </CardDescription>
+            </div>
           </div>
           <Badge className={cn('text-xs', config?.bg, config?.text, config?.border)}>
             {subtype.palette_effect || subtype.season}
