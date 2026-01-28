@@ -113,127 +113,145 @@ serve(async (req) => {
       );
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        temperature: 0, // Use temperature 0 for deterministic, consistent results
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: FACE_ANALYSIS_PROMPT },
-              { type: "image_url", image_url: { url: imageBase64 } }
-            ]
-          }
-        ],
-        max_tokens: 2000,
-      }),
-    });
+    // Retry logic with exponential backoff for rate limiting
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      if (attempt > 0) {
+        // Exponential backoff: 2s, 4s, 8s
+        const delay = Math.pow(2, attempt) * 1000;
+        console.log(`Rate limited, waiting ${delay}ms before retry ${attempt + 1}/${maxRetries}`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
 
-    if (!response.ok) {
-      if (response.status === 429) {
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          temperature: 0,
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: FACE_ANALYSIS_PROMPT },
+                { type: "image_url", image_url: { url: imageBase64 } }
+              ]
+            }
+          ],
+          max_tokens: 2000,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content;
+
+        if (!content) {
+          throw new Error("No content in AI response");
+        }
+
+        // Parse the JSON from the response
+        let analysis;
+        try {
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            analysis = JSON.parse(jsonMatch[0]);
+          } else {
+            throw new Error("No JSON found in response");
+          }
+        } catch (parseError) {
+          console.error("Failed to parse AI response:", parseError);
+          return new Response(
+            JSON.stringify({ error: "Failed to parse AI analysis", raw: content }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Update the color_labels table with the analysis
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+        // Normalize enum values - AI sometimes returns underscores instead of hyphens
+        const normalizeEnumValue = (value: string | undefined): string | undefined => {
+          if (!value) return undefined;
+          return value.replace(/_/g, '-');
+        };
+
+        // Valid enum values for validation
+        const validContrastLevels = ['low', 'low-medium', 'medium', 'medium-high', 'high'];
+        const validDepthLevels = ['light', 'light-medium', 'medium', 'medium-deep', 'deep'];
+
+        const normalizedContrastLevel = normalizeEnumValue(analysis.contrast?.level);
+        const normalizedDepth = normalizeEnumValue(analysis.depth?.level);
+
+        const colorLabelData = {
+          face_image_id: faceImageId,
+          skin_hex: analysis.skin?.hex,
+          skin_tone_name: analysis.skin?.tone_name,
+          undertone: analysis.skin?.undertone,
+          eye_hex: analysis.eyes?.hex,
+          eye_color_name: analysis.eyes?.color_name,
+          eye_details: analysis.eyes?.details ? { description: analysis.eyes.details } : null,
+          hair_hex: analysis.hair?.hex,
+          hair_color_name: analysis.hair?.color_name,
+          hair_details: analysis.hair?.is_natural !== undefined ? { is_natural: analysis.hair.is_natural } : null,
+          contrast_level: validContrastLevels.includes(normalizedContrastLevel || '') ? normalizedContrastLevel : null,
+          contrast_value: analysis.contrast?.value,
+          contrast_details: analysis.contrast?.details ? { description: analysis.contrast.details } : null,
+          depth: validDepthLevels.includes(normalizedDepth || '') ? normalizedDepth : null,
+          depth_value: analysis.depth?.value,
+          ai_predicted_subtype: analysis.predicted_subtype,
+          confirmed_season: analysis.predicted_season,
+          ai_confidence: analysis.confidence,
+          ai_alternatives: analysis.alternatives,
+          ai_reasoning: analysis.reasoning,
+          label_status: 'ai_predicted',
+          labeled_at: new Date().toISOString(),
+        };
+
+        // Upsert the color label (update if exists, insert if not)
+        const { error: upsertError } = await supabase
+          .from('color_labels')
+          .upsert(colorLabelData, { 
+            onConflict: 'face_image_id',
+            ignoreDuplicates: false 
+          });
+
+        if (upsertError) {
+          console.error("Failed to save analysis:", upsertError);
+        }
+
         return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ 
+            success: true,
+            analysis,
+            saved: !upsertError
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+
+      if (response.status === 429) {
+        lastError = new Error("Rate limit exceeded");
+        continue; // Retry
+      }
+
+      // Other errors - don't retry
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
       throw new Error(`AI gateway error: ${response.status}`);
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      throw new Error("No content in AI response");
-    }
-
-    // Parse the JSON from the response
-    let analysis;
-    try {
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        analysis = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("No JSON found in response");
-      }
-    } catch (parseError) {
-      console.error("Failed to parse AI response:", parseError);
-      return new Response(
-        JSON.stringify({ error: "Failed to parse AI analysis", raw: content }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Update the color_labels table with the analysis
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Normalize enum values - AI sometimes returns underscores instead of hyphens
-    const normalizeEnumValue = (value: string | undefined): string | undefined => {
-      if (!value) return undefined;
-      return value.replace(/_/g, '-');
-    };
-
-    // Valid enum values for validation
-    const validContrastLevels = ['low', 'low-medium', 'medium', 'medium-high', 'high'];
-    const validDepthLevels = ['light', 'light-medium', 'medium', 'medium-deep', 'deep'];
-
-    const normalizedContrastLevel = normalizeEnumValue(analysis.contrast?.level);
-    const normalizedDepth = normalizeEnumValue(analysis.depth?.level);
-
-    const colorLabelData = {
-      face_image_id: faceImageId,
-      skin_hex: analysis.skin?.hex,
-      skin_tone_name: analysis.skin?.tone_name,
-      undertone: analysis.skin?.undertone,
-      eye_hex: analysis.eyes?.hex,
-      eye_color_name: analysis.eyes?.color_name,
-      eye_details: analysis.eyes?.details ? { description: analysis.eyes.details } : null,
-      hair_hex: analysis.hair?.hex,
-      hair_color_name: analysis.hair?.color_name,
-      hair_details: analysis.hair?.is_natural !== undefined ? { is_natural: analysis.hair.is_natural } : null,
-      contrast_level: validContrastLevels.includes(normalizedContrastLevel || '') ? normalizedContrastLevel : null,
-      contrast_value: analysis.contrast?.value,
-      contrast_details: analysis.contrast?.details ? { description: analysis.contrast.details } : null,
-      depth: validDepthLevels.includes(normalizedDepth || '') ? normalizedDepth : null,
-      depth_value: analysis.depth?.value,
-      ai_predicted_subtype: analysis.predicted_subtype,
-      confirmed_season: analysis.predicted_season,
-      ai_confidence: analysis.confidence,
-      ai_alternatives: analysis.alternatives,
-      ai_reasoning: analysis.reasoning,
-      label_status: 'ai_predicted',
-      labeled_at: new Date().toISOString(),
-    };
-
-    // Upsert the color label (update if exists, insert if not)
-    const { error: upsertError } = await supabase
-      .from('color_labels')
-      .upsert(colorLabelData, { 
-        onConflict: 'face_image_id',
-        ignoreDuplicates: false 
-      });
-
-    if (upsertError) {
-      console.error("Failed to save analysis:", upsertError);
-      // Still return the analysis even if save failed
-    }
-
+    // All retries exhausted
     return new Response(
-      JSON.stringify({ 
-        success: true,
-        analysis,
-        saved: !upsertError
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: "Rate limit exceeded after retries. Please try again later." }),
+      { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error) {

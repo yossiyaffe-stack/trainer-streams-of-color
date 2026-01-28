@@ -320,8 +320,12 @@ export function FacesGalleryTab() {
 
     toast({ title: 'Starting bulk analysis', description: `Analyzing ${unlabeled.length} faces...` });
     
-    for (const face of unlabeled) {
-      await analyzeFace(face);
+    for (let i = 0; i < unlabeled.length; i++) {
+      await analyzeFace(unlabeled[i]);
+      // Add delay between calls to avoid rate limiting (1.5s between requests)
+      if (i < unlabeled.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1500));
+      }
     }
   };
 
