@@ -40,34 +40,73 @@ serve(async (req) => {
     const artists = vocabulary?.filter(v => v.category === "artist") || [];
     const eras = vocabulary?.filter(v => v.category === "era") || [];
 
-    // Fetch verified training samples (expert_verified or nechama_verified)
+    // Fetch verified training samples with full details (expert_verified or nechama_verified)
     const { data: trainingSamples, error: samplesError } = await supabase
-      .from("v_training_data")
-      .select("*")
-      .in("label_status", ["expert_verified", "nechama_verified"])
-      .eq("is_good_for_training", true);
+      .from("face_images")
+      .select(`
+        id,
+        storage_path,
+        thumbnail_path,
+        source,
+        color_labels (
+          confirmed_season,
+          confirmed_subtype,
+          label_status,
+          labeled_by,
+          notes,
+          skin_hex,
+          skin_tone_name,
+          undertone,
+          eye_hex,
+          eye_color_name,
+          hair_hex,
+          hair_color_name,
+          contrast_level,
+          depth,
+          ai_confidence,
+          is_good_for_training
+        )
+      `)
+      .not("color_labels", "is", null);
 
     if (samplesError) throw samplesError;
 
-    // Format training samples for export
-    const formattedSamples = (trainingSamples || []).map(sample => ({
-      photo_url: sample.storage_path,
-      thumbnail_url: sample.thumbnail_path,
-      skin_hex: sample.skin_hex,
-      skin_tone_name: sample.skin_tone_name,
-      eye_hex: sample.eye_hex,
-      eye_color_name: sample.eye_color_name,
-      hair_hex: sample.hair_hex,
-      hair_color_name: sample.hair_color_name,
-      undertone: sample.undertone,
-      contrast_level: sample.contrast_level,
-      depth: sample.depth,
-      season_slug: sample.confirmed_season,
-      subtype_slug: sample.confirmed_subtype,
-      ai_confidence: sample.ai_confidence,
-      label_status: sample.label_status,
-      source: sample.source,
-    }));
+    // Filter to only verified samples and format for export
+    const formattedSamples = (trainingSamples || [])
+      .filter(sample => {
+        // color_labels is an array due to the join, get first element
+        const labels = Array.isArray(sample.color_labels) 
+          ? sample.color_labels[0] 
+          : sample.color_labels;
+        return labels && 
+          ["expert_verified", "nechama_verified"].includes(labels.label_status) &&
+          labels.is_good_for_training === true;
+      })
+      .map(sample => {
+        const labels = Array.isArray(sample.color_labels) 
+          ? sample.color_labels[0] 
+          : sample.color_labels;
+        return {
+          photo_url: sample.storage_path,
+          thumbnail_url: sample.thumbnail_path,
+          notes: labels?.notes || null,
+          labeled_by: labels?.labeled_by || null,
+          skin_undertone: labels?.undertone || null,
+          skin_hex: labels?.skin_hex || null,
+          skin_tone_name: labels?.skin_tone_name || null,
+          eye_color: labels?.eye_color_name || null,
+          eye_hex: labels?.eye_hex || null,
+          hair_color: labels?.hair_color_name || null,
+          hair_hex: labels?.hair_hex || null,
+          contrast_level: labels?.contrast_level || null,
+          depth: labels?.depth || null,
+          season_slug: labels?.confirmed_season || null,
+          subtype_slug: labels?.confirmed_subtype || null,
+          ai_confidence: labels?.ai_confidence || null,
+          label_status: labels?.label_status || null,
+          source: sample.source,
+        };
+      });
 
     // Build export payload
     const exportData = {
