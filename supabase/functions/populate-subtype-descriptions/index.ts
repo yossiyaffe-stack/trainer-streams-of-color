@@ -6,7 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Local subtype data extracted from the methodology - this is the source of truth
+// Complete subtype data extracted from src/data/subtypes.ts
+// This is the SINGLE SOURCE OF TRUTH for the methodology
 const SUBTYPE_DATA: Record<string, {
   beautyStatement?: string;
   paletteEffects?: string[];
@@ -21,7 +22,7 @@ const SUBTYPE_DATA: Record<string, {
   jewelryStones?: string[];
   jewelryStyles?: string[];
 }> = {
-  // SPRING SUBTYPES
+  // ============ SPRING SUBTYPES ============
   "wildflower-spring": {
     beautyStatement: "Delicate, romantic, whimsical Spring with Dutch master sensibility",
     paletteEffects: ["Girl with a Pearl Earring", "Fawn in a Field of Wildflowers", "Bouquet of Flowers in a Vase", "Milk Maiden"],
@@ -54,7 +55,7 @@ const SUBTYPE_DATA: Record<string, {
     jewelryStones: ["Aquamarine", "Rose Quartz", "Pearl", "Blue Topaz"],
     jewelryStyles: ["Delicate chains", "Floral motifs", "Spring-inspired"],
   },
-  // SUMMER SUBTYPES
+  // ============ SUMMER SUBTYPES ============
   "ballerina-summer": {
     paletteEffects: ["Princess", "Rose Garden", "Ballerina", "Peasant Girl- Eastern Europe", "Milk Maiden"],
     fabrics: ["Lace", "Eyelet", "White Fur", "Fine Cotton", "Organza", "Chiffon", "Embroidery", "Needlepoint", "Fine wool", "Wool Jersey", "Velvet", "Fine Corduroy"],
@@ -146,7 +147,7 @@ const SUBTYPE_DATA: Record<string, {
     fabrics: ["Eyelet", "Lace", "Crocheted Lace", "Knitted Lace", "Velvet", "Crushed Velvet", "Fine Corduroy", "Chambray", "Denim", "Cotton-Linen", "Organza", "Chiffon", "Tulle", "Tweed", "Boucle", "Angora", "Silk", "Gauze Cotton", "Jersey", "Suede", "Soft Leather", "Fine Knits", "Fisherman Knits", "Irish Knits", "Embroidered Cotton", "Needlepoint/Tapestry"],
     prints: ["Flowers", "Ribbons", "Pearls", "Birds", "Bird Cages", "Feathers", "Butterflies", "Deer", "Diamond Prints", "Vases", "Fleur De Lis", "Fine Stripes", "Porcelain Prints", "Plaid", "Roses", "Peonies", "Tulips", "Jasmine", "Star Flowers", "Lilacs", "Hydrangeas", "Hibiscus", "Water Lilies", "Lotus", "Paisley", "Hearts", "Lockets", "Bows", "Cherry Blossoms", "Magnolias", "Gardenias"],
   },
-  // AUTUMN SUBTYPES
+  // ============ AUTUMN SUBTYPES ============
   "auburn-autumn": {
     paletteEffects: ["Celtic Fire", "Autumn Leaves", "Irish Countryside", "Renaissance"],
     fabrics: ["Tweed", "Wool", "Cashmere", "Velvet", "Corduroy", "Suede", "Leather", "Denim", "Linen", "Cotton"],
@@ -254,7 +255,7 @@ const SUBTYPE_DATA: Record<string, {
     jewelryMetals: ["Gold", "Antique Gold", "Copper", "Bronze"],
     jewelryStones: ["Topaz", "Amber", "Citrine", "Yellow Sapphire", "Emerald", "Jade"],
   },
-  // WINTER SUBTYPES
+  // ============ WINTER SUBTYPES ============
   "burnished-winter": {
     paletteEffects: ["Winter Sunset", "Medieval Knight", "Spanish Renaissance", "Antique Tapestry"],
     fabrics: ["Velvet", "Brocade", "Tapestry", "Silk Shantung", "Satin", "Cashmere", "Fine Wool", "Leather", "Suede", "Tweed", "Lace", "Metallic Weave"],
@@ -290,22 +291,26 @@ const SUBTYPE_DATA: Record<string, {
     jewelryStones: ["Emeralds", "Rubies", "Jade", "Coral", "Tiger's Eye"],
   },
   "gemstone-winter": {
-    paletteEffects: ["Jewel Box", "Crown Jewels", "Byzantine Gems", "Royal Treasury"],
-    fabrics: ["Velvet", "Satin", "Silk", "Brocade", "Metallic fabrics"],
-    prints: ["Jewel patterns", "Geometric", "Mosaic"],
-    eras: ["Byzantine", "Renaissance", "Royal Courts"],
-    jewelryStyles: ["Statement pieces", "Chandelier", "Cluster designs"],
-    jewelryMetals: ["Gold", "Platinum", "White Gold"],
-    jewelryStones: ["Emeralds", "Sapphires", "Rubies", "Diamonds", "Amethyst"],
+    beautyStatement: "This Palette blends cool blues and purples along with warmer earth tones. Like a blue lake at sunset.",
+    paletteEffects: ["Jewel Tone Palette", "Bouquet of Roses", "Blue Lake at sunset"],
+    fabrics: ["Lace", "Fine Lace", "Linen", "Linen Cotton", "Denim", "Chambray", "Velvet", "Cut Velvet", "Fine tweed", "Fur", "Cashmere", "Angora", "Tulle", "Toile", "Sheep Boucle", "Satin", "Silk", "Shantung"],
+    prints: ["Houndstooth", "Fine Stripe", "Toile prints", "Plaid", "Roses and Branches", "Hibiscus Flowers", "Tropical Flowers and Leaves", "Gardenias", "Lotus Flowers", "Grapes, Grape Leaves, Pomegranates, Apples", "Small Diamonds", "Chevron", "Tweed", "Missoni Prints", "Paisley", "Mosaic Prints", "Fleur De Lis", "Lace prints", "Trompe L'oeil", "Birds, Deer and Elephants", "Embossed leather", "Peacock Feathers", "Ostrich Feathers", "Silk Tassels", "Lilies", "Water lilies", "Calla Lilies"],
+    eras: ["Persian", "Indian", "Edwardian", "Romanian peasant style"],
+    artists: ["Modigliani", "Da Vinci"],
+    jewelryStyles: ["Filigree", "Enamel", "Pave", "Links", "Braided Chains", "Floral Enamel", "Birds", "Feathers", "Leaves", "Water Lilies", "Lotus flowers"],
+    jewelryMetals: ["Rose Gold", "Platinum", "Silver", "Gold"],
+    jewelryStones: ["Pearls", "Sapphires", "Amethyst", "Carnelian", "Garnets", "Rubies"],
   },
   "mediterranean-winter": {
-    paletteEffects: ["Mediterranean Night", "Moroccan Palace", "Spanish Courtyard", "Italian Villa"],
-    fabrics: ["Silk", "Linen", "Cotton", "Velvet", "Leather", "Tile-inspired prints"],
-    prints: ["Tile patterns", "Mosaic", "Mediterranean motifs", "Citrus", "Olives"],
+    paletteEffects: ["Spanish Mountains", "Mediterranean Palette", "Queen Esther", "Moroccan Mosaics", "Spanish Tiles", "Early Winter Sunset"],
+    fabrics: ["Shantung", "Jersey", "Crushed Velvet", "Cut Velvet", "Corduroy", "Suit Fabric", "Fine wool", "Tweed", "Linen", "Linen Cotton mix", "Lace", "Boucle", "Polished Cotton", "Brocade", "Tapestry"],
+    prints: ["Mosaic", "Fine stripes", "Geometric Patterns", "Tile Prints", "Leaves", "Branches", "Houses", "Pitchers", "Feathers", "Trees", "Leopard", "Tiger", "Zebra", "Plaid", "Missoni Prints", "Pinstripes", "Ombre Chiffon Prints", "Mountain and Water prints", "Indian and Persian Embroidery", "Lilies", "Parrot Flowers", "Roses", "Wheat", "Grapes", "Apples", "Toile"],
     eras: ["Mediterranean Classical", "Moorish", "Spanish Colonial"],
-    jewelryStyles: ["Mosaic", "Tile-inspired", "Ethnic designs", "Coins"],
-    jewelryMetals: ["Gold", "Antique Gold", "Copper"],
-    jewelryStones: ["Coral", "Turquoise", "Lapis Lazuli", "Jade"],
+    designers: ["Etro", "Brunello Cuccinelli", "Missoni"],
+    artists: ["Corot", "Modigliani"],
+    jewelryStyles: ["Rope and Links for chains", "Layered chains of different textures", "Green and Coral beads", "Large opaque stones", "Irregular shaped stones", "Beaded or Braided settings", "Chandelier earrings", "Leaf and Feather shaped earrings", "Pear or rectangular earrings"],
+    jewelryMetals: ["Gold", "Antique Gold", "Copper", "Pewter", "Antique Silver"],
+    jewelryStones: ["Amber", "Topaz", "Coral", "Labradorite", "Jade", "Ivory", "Agate", "Onyx", "Jasper"],
   },
   "multi-colored-winter": {
     paletteEffects: ["Silk Road", "Persian Palace", "Byzantine", "Moroccan", "Indian Empress"],
@@ -376,19 +381,17 @@ serve(async (req) => {
 
     if (fetchError) throw fetchError;
 
+    console.log(`Found ${subtypes?.length || 0} subtypes in database`);
+    console.log(`Have data for ${Object.keys(SUBTYPE_DATA).length} subtypes in algorithm`);
+
     for (const subtype of subtypes || []) {
-      const localData = SUBTYPE_DATA[subtype.slug];
+      // Try matching by slug first, then by name-derived slug
+      const nameSlug = subtype.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      const localData = SUBTYPE_DATA[subtype.slug] || SUBTYPE_DATA[nameSlug];
       
       if (!localData) {
-        // Try matching by name
-        const nameSlug = subtype.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-        const altData = SUBTYPE_DATA[nameSlug];
-        if (!altData) continue;
-        Object.assign(localData || {}, altData);
+        continue;
       }
-      
-      const dataToUse = SUBTYPE_DATA[subtype.slug] || SUBTYPE_DATA[subtype.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')];
-      if (!dataToUse) continue;
 
       // Build update object - ALWAYS update fields from local data (overwrite existing)
       const updateData: Record<string, unknown> = {};
@@ -396,64 +399,64 @@ serve(async (req) => {
 
       // Description from beautyStatement, or generate from paletteEffects
       if (!subtype.description || subtype.description.trim() === '') {
-        if (dataToUse.beautyStatement) {
-          updateData.description = dataToUse.beautyStatement;
+        if (localData.beautyStatement) {
+          updateData.description = localData.beautyStatement;
           hasUpdates = true;
-        } else if (dataToUse.paletteEffects?.length) {
+        } else if (localData.paletteEffects?.length) {
           // Generate description from palette effects
-          const effectsList = dataToUse.paletteEffects.slice(0, 3).join(', ');
-          updateData.description = `A ${subtype.name} palette with effects of ${effectsList}. ${dataToUse.paletteEffects.length > 3 ? `Also includes ${dataToUse.paletteEffects.slice(3).join(', ')}.` : ''}`.trim();
+          const effectsList = localData.paletteEffects.slice(0, 3).join(', ');
+          updateData.description = `A ${subtype.name} palette with effects of ${effectsList}. ${localData.paletteEffects.length > 3 ? `Also includes ${localData.paletteEffects.slice(3).join(', ')}.` : ''}`.trim();
           hasUpdates = true;
         }
       }
 
       // Palette effect from first paletteEffects - always update if we have data
-      if (dataToUse.paletteEffects?.length) {
-        updateData.palette_effect = dataToUse.paletteEffects[0];
+      if (localData.paletteEffects?.length) {
+        updateData.palette_effect = localData.paletteEffects[0];
         hasUpdates = true;
       }
 
       // Fabrics - always update
-      if (dataToUse.fabrics?.length) {
-        updateData.fabrics_perfect = dataToUse.fabrics;
+      if (localData.fabrics?.length) {
+        updateData.fabrics_perfect = localData.fabrics;
         hasUpdates = true;
       }
 
       // Prints - always update
-      if (dataToUse.prints?.length) {
-        updateData.prints = dataToUse.prints;
+      if (localData.prints?.length) {
+        updateData.prints = localData.prints;
         hasUpdates = true;
       }
 
       // Eras - always update
-      if (dataToUse.eras?.length) {
-        updateData.eras = dataToUse.eras;
+      if (localData.eras?.length) {
+        updateData.eras = localData.eras;
         hasUpdates = true;
       }
 
       // Artists - always update
-      if (dataToUse.artists?.length) {
-        updateData.artists = dataToUse.artists;
+      if (localData.artists?.length) {
+        updateData.artists = localData.artists;
         hasUpdates = true;
       }
 
       // Designers - always update
-      if (dataToUse.designers?.length) {
-        updateData.designers = dataToUse.designers;
+      if (localData.designers?.length) {
+        updateData.designers = localData.designers;
         hasUpdates = true;
       }
 
       // Jewelry - always update
-      if (dataToUse.jewelryMetals?.length) {
-        updateData.jewelry_metals = dataToUse.jewelryMetals;
+      if (localData.jewelryMetals?.length) {
+        updateData.jewelry_metals = localData.jewelryMetals;
         hasUpdates = true;
       }
-      if (dataToUse.jewelryStones?.length) {
-        updateData.jewelry_stones = dataToUse.jewelryStones;
+      if (localData.jewelryStones?.length) {
+        updateData.jewelry_stones = localData.jewelryStones;
         hasUpdates = true;
       }
-      if (dataToUse.jewelryStyles?.length) {
-        updateData.jewelry_styles = dataToUse.jewelryStyles;
+      if (localData.jewelryStyles?.length) {
+        updateData.jewelry_styles = localData.jewelryStyles;
         hasUpdates = true;
       }
 
@@ -477,7 +480,8 @@ serve(async (req) => {
         success: true,
         updated_count: updatedCount,
         updated_subtypes: updates,
-        message: `Updated ${updatedCount} subtypes with descriptions and attributes`,
+        total_algorithm_subtypes: Object.keys(SUBTYPE_DATA).length,
+        message: `Updated ${updatedCount} subtypes with descriptions and attributes from the algorithm file`,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
