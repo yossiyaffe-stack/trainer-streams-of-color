@@ -276,12 +276,12 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
 
       const analysisResult = analysisData.analysis;
 
-      // Update database with analysis results
+      // Update database with analysis results - preserve existing title/artist if already set
       const updateData = {
         ai_analysis: analysisResult,
-        title: analysisResult.title_suggestion || painting.title,
-        artist: analysisResult.artist_detected || painting.artist,
-        era: analysisResult.era_detected || painting.era,
+        title: painting.title || analysisResult.title_suggestion,
+        artist: painting.artist || analysisResult.artist_detected,
+        era: painting.era || analysisResult.era_detected,
         fabrics: [...(analysisResult.fabrics?.primary || []), ...(analysisResult.fabrics?.secondary || [])],
         silhouette: analysisResult.silhouette?.primary,
         neckline: analysisResult.neckline,
