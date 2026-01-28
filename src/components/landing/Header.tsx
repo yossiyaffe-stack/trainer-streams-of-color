@@ -5,6 +5,7 @@ import { Palette, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 
 const navLinks = [
+  { path: '/subtypes', label: 'Subtypes' },
   { path: '/', label: 'Faces' },
   { path: '/paintings', label: 'Paintings' },
   { path: '/explore', label: 'Explore' },
