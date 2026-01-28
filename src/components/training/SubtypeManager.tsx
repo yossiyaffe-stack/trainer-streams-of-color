@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,8 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Loader2, Palette, Sparkles, Crown, Brush } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Palette, Sparkles, Crown, ChevronDown, ChevronRight, Flower2, Sun, Leaf, Snowflake } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Subtype {
@@ -69,11 +70,46 @@ const EMPTY_SUBTYPE: Omit<Subtype, 'id'> = {
   display_order: 0,
 };
 
-const SEASON_COLORS = {
-  spring: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-  summer: 'bg-rose-100 text-rose-800 border-rose-200',
-  autumn: 'bg-amber-100 text-amber-800 border-amber-200',
-  winter: 'bg-slate-100 text-slate-800 border-slate-200',
+const SEASONS = ['spring', 'summer', 'autumn', 'winter'] as const;
+const TIME_PERIODS = ['Early', 'Mid', 'Late'] as const;
+
+const SEASON_CONFIG = {
+  spring: { 
+    icon: Flower2, 
+    label: 'Spring',
+    bg: 'bg-emerald-100', 
+    text: 'text-emerald-800', 
+    border: 'border-emerald-300',
+    activeBg: 'bg-emerald-500',
+    activeText: 'text-white'
+  },
+  summer: { 
+    icon: Sun, 
+    label: 'Summer',
+    bg: 'bg-rose-100', 
+    text: 'text-rose-800', 
+    border: 'border-rose-300',
+    activeBg: 'bg-rose-500',
+    activeText: 'text-white'
+  },
+  autumn: { 
+    icon: Leaf, 
+    label: 'Autumn',
+    bg: 'bg-amber-100', 
+    text: 'text-amber-800', 
+    border: 'border-amber-300',
+    activeBg: 'bg-amber-500',
+    activeText: 'text-white'
+  },
+  winter: { 
+    icon: Snowflake, 
+    label: 'Winter',
+    bg: 'bg-slate-100', 
+    text: 'text-slate-800', 
+    border: 'border-slate-300',
+    activeBg: 'bg-slate-700',
+    activeText: 'text-white'
+  },
 };
 
 function TagInput({ 
@@ -140,7 +176,11 @@ export function SubtypeManager() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSubtype, setEditingSubtype] = useState<Subtype | null>(null);
   const [formData, setFormData] = useState<Omit<Subtype, 'id'>>(EMPTY_SUBTYPE);
-  const [filterSeason, setFilterSeason] = useState<string>('all');
+  
+  // 3-Tier Filter State
+  const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
+  const [selectedTimePeriod, setSelectedTimePeriod] = useState<string | null>(null);
+  const [expandedSeasons, setExpandedSeasons] = useState<Set<string>>(new Set(SEASONS));
 
   useEffect(() => {
     fetchSubtypes();
@@ -164,9 +204,91 @@ export function SubtypeManager() {
     }
   };
 
+  // Categorize subtypes
+  const categorizedSubtypes = useMemo(() => {
+    const result: Record<string, {
+      timePeriods: Record<string, Subtype[]>;
+      specific: Subtype[];
+    }> = {};
+
+    SEASONS.forEach(season => {
+      result[season] = { timePeriods: {}, specific: [] };
+      TIME_PERIODS.forEach(tp => {
+        result[season].timePeriods[tp] = [];
+      });
+    });
+
+    subtypes.forEach(subtype => {
+      const season = subtype.season.toLowerCase();
+      if (!result[season]) return;
+
+      // Check if it's a time period subtype (Early X, Mid X, Late X)
+      const timePeriodMatch = TIME_PERIODS.find(tp => 
+        subtype.name.toLowerCase().startsWith(tp.toLowerCase())
+      );
+
+      if (timePeriodMatch) {
+        result[season].timePeriods[timePeriodMatch].push(subtype);
+      } else {
+        result[season].specific.push(subtype);
+      }
+    });
+
+    return result;
+  }, [subtypes]);
+
+  // Filter subtypes based on selection
+  const filteredSubtypes = useMemo(() => {
+    if (!selectedSeason) return subtypes;
+
+    const seasonData = categorizedSubtypes[selectedSeason];
+    if (!seasonData) return [];
+
+    if (selectedTimePeriod) {
+      return seasonData.timePeriods[selectedTimePeriod] || [];
+    }
+
+    // Return all for the season
+    const allForSeason = [
+      ...Object.values(seasonData.timePeriods).flat(),
+      ...seasonData.specific
+    ];
+    return allForSeason;
+  }, [subtypes, selectedSeason, selectedTimePeriod, categorizedSubtypes]);
+
+  // Stats per season
+  const seasonStats = useMemo(() => {
+    const stats: Record<string, { total: number; timePeriod: number; specific: number }> = {};
+    SEASONS.forEach(season => {
+      const data = categorizedSubtypes[season];
+      const timePeriodCount = Object.values(data.timePeriods).flat().length;
+      stats[season] = {
+        total: timePeriodCount + data.specific.length,
+        timePeriod: timePeriodCount,
+        specific: data.specific.length
+      };
+    });
+    return stats;
+  }, [categorizedSubtypes]);
+
+  const toggleSeason = (season: string) => {
+    setExpandedSeasons(prev => {
+      const next = new Set(prev);
+      if (next.has(season)) {
+        next.delete(season);
+      } else {
+        next.add(season);
+      }
+      return next;
+    });
+  };
+
   const openCreateDialog = () => {
     setEditingSubtype(null);
-    setFormData(EMPTY_SUBTYPE);
+    setFormData({
+      ...EMPTY_SUBTYPE,
+      season: selectedSeason || 'spring'
+    });
     setDialogOpen(true);
   };
 
@@ -250,15 +372,10 @@ export function SubtypeManager() {
     }
   };
 
-  const filteredSubtypes = filterSeason === 'all' 
-    ? subtypes 
-    : subtypes.filter(s => s.season === filterSeason);
-
-  const groupedSubtypes = filteredSubtypes.reduce((acc, subtype) => {
-    if (!acc[subtype.season]) acc[subtype.season] = [];
-    acc[subtype.season].push(subtype);
-    return acc;
-  }, {} as Record<string, Subtype[]>);
+  const clearFilters = () => {
+    setSelectedSeason(null);
+    setSelectedTimePeriod(null);
+  };
 
   if (loading) {
     return (
@@ -275,311 +392,419 @@ export function SubtypeManager() {
         <div>
           <h2 className="text-2xl font-serif font-bold">Subtype Management</h2>
           <p className="text-sm text-muted-foreground">
-            {subtypes.length} subtypes configured
+            {subtypes.length} subtypes across all seasons
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Select value={filterSeason} onValueChange={setFilterSeason}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Seasons</SelectItem>
-              <SelectItem value="spring">Spring</SelectItem>
-              <SelectItem value="summer">Summer</SelectItem>
-              <SelectItem value="autumn">Autumn</SelectItem>
-              <SelectItem value="winter">Winter</SelectItem>
-            </SelectContent>
-          </Select>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={openCreateDialog}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Subtype
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingSubtype ? 'Edit Subtype' : 'Create New Subtype'}
-                </DialogTitle>
-              </DialogHeader>
-              <ScrollArea className="max-h-[70vh] pr-4">
-                <Tabs defaultValue="basic" className="w-full">
-                  <TabsList className="grid w-full grid-cols-4 mb-4">
-                    <TabsTrigger value="basic">Basic</TabsTrigger>
-                    <TabsTrigger value="fabrics">Fabrics</TabsTrigger>
-                    <TabsTrigger value="jewelry">Jewelry</TabsTrigger>
-                    <TabsTrigger value="references">References</TabsTrigger>
-                  </TabsList>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={openCreateDialog}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Subtype
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle>
+                {editingSubtype ? 'Edit Subtype' : 'Create New Subtype'}
+              </DialogTitle>
+            </DialogHeader>
+            <ScrollArea className="max-h-[70vh] pr-4">
+              <Tabs defaultValue="basic" className="w-full">
+                <TabsList className="grid w-full grid-cols-4 mb-4">
+                  <TabsTrigger value="basic">Basic</TabsTrigger>
+                  <TabsTrigger value="fabrics">Fabrics</TabsTrigger>
+                  <TabsTrigger value="jewelry">Jewelry</TabsTrigger>
+                  <TabsTrigger value="references">References</TabsTrigger>
+                </TabsList>
 
-                  <TabsContent value="basic" className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Slug (unique ID)</Label>
-                        <Input
-                          value={formData.slug}
-                          onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') }))}
-                          placeholder="e.g., warm-spring"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Display Name</Label>
-                        <Input
-                          value={formData.name}
-                          onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                          placeholder="e.g., Warm Spring"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Season</Label>
-                        <Select 
-                          value={formData.season} 
-                          onValueChange={(v) => setFormData(prev => ({ ...prev, season: v }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="spring">🌷 Spring</SelectItem>
-                            <SelectItem value="summer">🌸 Summer</SelectItem>
-                            <SelectItem value="autumn">🍂 Autumn</SelectItem>
-                            <SelectItem value="winter">❄️ Winter</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Palette Effect</Label>
-                        <Input
-                          value={formData.palette_effect || ''}
-                          onChange={(e) => setFormData(prev => ({ ...prev, palette_effect: e.target.value }))}
-                          placeholder="e.g., Warm & Bright"
-                        />
-                      </div>
-                    </div>
+                <TabsContent value="basic" className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Description</Label>
-                      <Textarea
-                        value={formData.description || ''}
-                        onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                        placeholder="Describe this subtype..."
-                        rows={3}
+                      <Label>Slug (unique ID)</Label>
+                      <Input
+                        value={formData.slug}
+                        onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') }))}
+                        placeholder="e.g., warm-spring"
                       />
                     </div>
-                    <TagInput
-                      label="Key Colors"
-                      value={formData.key_colors}
-                      onChange={(v) => setFormData(prev => ({ ...prev, key_colors: v }))}
-                      placeholder="Add a color..."
+                    <div className="space-y-2">
+                      <Label>Display Name</Label>
+                      <Input
+                        value={formData.name}
+                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="e.g., Warm Spring"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Season</Label>
+                      <Select 
+                        value={formData.season} 
+                        onValueChange={(v) => setFormData(prev => ({ ...prev, season: v }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="spring">🌷 Spring</SelectItem>
+                          <SelectItem value="summer">🌸 Summer</SelectItem>
+                          <SelectItem value="autumn">🍂 Autumn</SelectItem>
+                          <SelectItem value="winter">❄️ Winter</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Palette Effect</Label>
+                      <Input
+                        value={formData.palette_effect || ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, palette_effect: e.target.value }))}
+                        placeholder="e.g., Warm & Bright"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Description</Label>
+                    <Textarea
+                      value={formData.description || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="Describe this subtype..."
+                      rows={3}
                     />
-                    <TagInput
-                      label="Colors to Avoid"
-                      value={formData.avoid_colors}
-                      onChange={(v) => setFormData(prev => ({ ...prev, avoid_colors: v }))}
-                      placeholder="Add a color to avoid..."
-                    />
-                    <TagInput
-                      label="Best For (Client Types)"
-                      value={formData.best_for}
-                      onChange={(v) => setFormData(prev => ({ ...prev, best_for: v }))}
-                      placeholder="e.g., Romantic events..."
-                    />
-                  </TabsContent>
+                  </div>
+                  <TagInput
+                    label="Key Colors"
+                    value={formData.key_colors}
+                    onChange={(v) => setFormData(prev => ({ ...prev, key_colors: v }))}
+                    placeholder="Add a color..."
+                  />
+                  <TagInput
+                    label="Colors to Avoid"
+                    value={formData.avoid_colors}
+                    onChange={(v) => setFormData(prev => ({ ...prev, avoid_colors: v }))}
+                    placeholder="Add a color to avoid..."
+                  />
+                  <TagInput
+                    label="Best For (Client Types)"
+                    value={formData.best_for}
+                    onChange={(v) => setFormData(prev => ({ ...prev, best_for: v }))}
+                    placeholder="e.g., Romantic events..."
+                  />
+                </TabsContent>
 
-                  <TabsContent value="fabrics" className="space-y-4">
-                    <TagInput
-                      label="Perfect Fabrics ✓"
-                      value={formData.fabrics_perfect}
-                      onChange={(v) => setFormData(prev => ({ ...prev, fabrics_perfect: v }))}
-                      placeholder="Add fabric..."
-                    />
-                    <TagInput
-                      label="Good Fabrics ○"
-                      value={formData.fabrics_good}
-                      onChange={(v) => setFormData(prev => ({ ...prev, fabrics_good: v }))}
-                      placeholder="Add fabric..."
-                    />
-                    <TagInput
-                      label="Fabrics to Avoid ✗"
-                      value={formData.fabrics_avoid}
-                      onChange={(v) => setFormData(prev => ({ ...prev, fabrics_avoid: v }))}
-                      placeholder="Add fabric..."
-                    />
-                    <TagInput
-                      label="Prints & Patterns"
-                      value={formData.prints}
-                      onChange={(v) => setFormData(prev => ({ ...prev, prints: v }))}
-                      placeholder="Add print..."
-                    />
-                    <TagInput
-                      label="Silhouettes"
-                      value={formData.silhouettes}
-                      onChange={(v) => setFormData(prev => ({ ...prev, silhouettes: v }))}
-                      placeholder="Add silhouette..."
-                    />
-                  </TabsContent>
+                <TabsContent value="fabrics" className="space-y-4">
+                  <TagInput
+                    label="Perfect Fabrics ✓"
+                    value={formData.fabrics_perfect}
+                    onChange={(v) => setFormData(prev => ({ ...prev, fabrics_perfect: v }))}
+                    placeholder="Add fabric..."
+                  />
+                  <TagInput
+                    label="Good Fabrics ○"
+                    value={formData.fabrics_good}
+                    onChange={(v) => setFormData(prev => ({ ...prev, fabrics_good: v }))}
+                    placeholder="Add fabric..."
+                  />
+                  <TagInput
+                    label="Fabrics to Avoid ✗"
+                    value={formData.fabrics_avoid}
+                    onChange={(v) => setFormData(prev => ({ ...prev, fabrics_avoid: v }))}
+                    placeholder="Add fabric..."
+                  />
+                  <TagInput
+                    label="Prints & Patterns"
+                    value={formData.prints}
+                    onChange={(v) => setFormData(prev => ({ ...prev, prints: v }))}
+                    placeholder="Add print..."
+                  />
+                  <TagInput
+                    label="Silhouettes"
+                    value={formData.silhouettes}
+                    onChange={(v) => setFormData(prev => ({ ...prev, silhouettes: v }))}
+                    placeholder="Add silhouette..."
+                  />
+                </TabsContent>
 
-                  <TabsContent value="jewelry" className="space-y-4">
-                    <TagInput
-                      label="Metals"
-                      value={formData.jewelry_metals}
-                      onChange={(v) => setFormData(prev => ({ ...prev, jewelry_metals: v }))}
-                      placeholder="e.g., Yellow Gold..."
-                    />
-                    <TagInput
-                      label="Stones"
-                      value={formData.jewelry_stones}
-                      onChange={(v) => setFormData(prev => ({ ...prev, jewelry_stones: v }))}
-                      placeholder="e.g., Peridot..."
-                    />
-                    <TagInput
-                      label="Jewelry Styles"
-                      value={formData.jewelry_styles}
-                      onChange={(v) => setFormData(prev => ({ ...prev, jewelry_styles: v }))}
-                      placeholder="e.g., Delicate chains..."
-                    />
-                    <TagInput
-                      label="Lip Colors"
-                      value={formData.makeup_lip}
-                      onChange={(v) => setFormData(prev => ({ ...prev, makeup_lip: v }))}
-                      placeholder="Add lip color..."
-                    />
-                    <TagInput
-                      label="Cheek Colors"
-                      value={formData.makeup_cheek}
-                      onChange={(v) => setFormData(prev => ({ ...prev, makeup_cheek: v }))}
-                      placeholder="Add cheek color..."
-                    />
-                    <TagInput
-                      label="Eye Colors"
-                      value={formData.makeup_eye}
-                      onChange={(v) => setFormData(prev => ({ ...prev, makeup_eye: v }))}
-                      placeholder="Add eye color..."
-                    />
-                  </TabsContent>
+                <TabsContent value="jewelry" className="space-y-4">
+                  <TagInput
+                    label="Metals"
+                    value={formData.jewelry_metals}
+                    onChange={(v) => setFormData(prev => ({ ...prev, jewelry_metals: v }))}
+                    placeholder="e.g., Yellow Gold..."
+                  />
+                  <TagInput
+                    label="Stones"
+                    value={formData.jewelry_stones}
+                    onChange={(v) => setFormData(prev => ({ ...prev, jewelry_stones: v }))}
+                    placeholder="e.g., Peridot..."
+                  />
+                  <TagInput
+                    label="Jewelry Styles"
+                    value={formData.jewelry_styles}
+                    onChange={(v) => setFormData(prev => ({ ...prev, jewelry_styles: v }))}
+                    placeholder="e.g., Delicate chains..."
+                  />
+                  <TagInput
+                    label="Lip Colors"
+                    value={formData.makeup_lip}
+                    onChange={(v) => setFormData(prev => ({ ...prev, makeup_lip: v }))}
+                    placeholder="Add lip color..."
+                  />
+                  <TagInput
+                    label="Cheek Colors"
+                    value={formData.makeup_cheek}
+                    onChange={(v) => setFormData(prev => ({ ...prev, makeup_cheek: v }))}
+                    placeholder="Add cheek color..."
+                  />
+                  <TagInput
+                    label="Eye Colors"
+                    value={formData.makeup_eye}
+                    onChange={(v) => setFormData(prev => ({ ...prev, makeup_eye: v }))}
+                    placeholder="Add eye color..."
+                  />
+                </TabsContent>
 
-                  <TabsContent value="references" className="space-y-4">
-                    <TagInput
-                      label="Historical Eras"
-                      value={formData.eras}
-                      onChange={(v) => setFormData(prev => ({ ...prev, eras: v }))}
-                      placeholder="e.g., Art Nouveau..."
-                    />
-                    <TagInput
-                      label="Artists"
-                      value={formData.artists}
-                      onChange={(v) => setFormData(prev => ({ ...prev, artists: v }))}
-                      placeholder="e.g., Mucha..."
-                    />
-                    <TagInput
-                      label="Designers"
-                      value={formData.designers}
-                      onChange={(v) => setFormData(prev => ({ ...prev, designers: v }))}
-                      placeholder="e.g., Oscar de la Renta..."
-                    />
-                  </TabsContent>
-                </Tabs>
-              </ScrollArea>
-              <div className="flex justify-end gap-2 pt-4 border-t">
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleSave} disabled={saving}>
-                  {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  {editingSubtype ? 'Update' : 'Create'}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
+                <TabsContent value="references" className="space-y-4">
+                  <TagInput
+                    label="Historical Eras"
+                    value={formData.eras}
+                    onChange={(v) => setFormData(prev => ({ ...prev, eras: v }))}
+                    placeholder="e.g., Art Nouveau..."
+                  />
+                  <TagInput
+                    label="Artists"
+                    value={formData.artists}
+                    onChange={(v) => setFormData(prev => ({ ...prev, artists: v }))}
+                    placeholder="e.g., Mucha..."
+                  />
+                  <TagInput
+                    label="Designers"
+                    value={formData.designers}
+                    onChange={(v) => setFormData(prev => ({ ...prev, designers: v }))}
+                    placeholder="e.g., Oscar de la Renta..."
+                  />
+                </TabsContent>
+              </Tabs>
+            </ScrollArea>
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSave} disabled={saving}>
+                {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {editingSubtype ? 'Update' : 'Create'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      {/* Subtype Grid */}
-      {Object.entries(groupedSubtypes).map(([season, items]) => (
-        <div key={season} className="space-y-3">
-          <h3 className="font-semibold capitalize flex items-center gap-2">
-            {season === 'spring' && '🌷'}
-            {season === 'summer' && '🌸'}
-            {season === 'autumn' && '🍂'}
-            {season === 'winter' && '❄️'}
-            {season}
-            <Badge variant="secondary" className="ml-2">{items.length}</Badge>
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {items.map(subtype => (
-              <Card 
-                key={subtype.id} 
-                className={cn(
-                  'relative group hover:shadow-md transition-shadow',
-                  !subtype.is_active && 'opacity-50'
-                )}
-              >
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-base">{subtype.name}</CardTitle>
-                      <CardDescription className="text-xs font-mono">
-                        {subtype.slug}
-                      </CardDescription>
-                    </div>
-                    <Badge className={cn('text-xs', SEASON_COLORS[subtype.season as keyof typeof SEASON_COLORS])}>
-                      {subtype.palette_effect || subtype.season}
+      {/* 3-Tier Filter System */}
+      <Card className="p-4">
+        <div className="space-y-4">
+          {/* Tier 1: Season Selection */}
+          <div>
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground mb-2 block">
+              Step 1: Select Season
+            </Label>
+            <div className="flex flex-wrap gap-2">
+              {SEASONS.map(season => {
+                const config = SEASON_CONFIG[season];
+                const Icon = config.icon;
+                const isActive = selectedSeason === season;
+                const stats = seasonStats[season];
+                
+                return (
+                  <Button
+                    key={season}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedSeason(isActive ? null : season);
+                      setSelectedTimePeriod(null);
+                    }}
+                    className={cn(
+                      'gap-2 transition-all',
+                      isActive 
+                        ? `${config.activeBg} ${config.activeText} border-transparent` 
+                        : `${config.bg} ${config.text} ${config.border}`
+                    )}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {config.label}
+                    <Badge variant="secondary" className={cn(
+                      'ml-1 text-[10px]',
+                      isActive && 'bg-white/20 text-inherit'
+                    )}>
+                      {stats.total}
                     </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {subtype.key_colors.slice(0, 4).map(color => (
-                      <Badge key={color} variant="outline" className="text-[10px]">
-                        {color}
-                      </Badge>
-                    ))}
-                    {subtype.key_colors.length > 4 && (
-                      <Badge variant="outline" className="text-[10px]">
-                        +{subtype.key_colors.length - 4}
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex gap-1 text-xs text-muted-foreground">
-                    {subtype.fabrics_perfect.length > 0 && (
-                      <span className="flex items-center gap-1">
-                        <Sparkles className="w-3 h-3" />
-                        {subtype.fabrics_perfect.length} fabrics
-                      </span>
-                    )}
-                    {subtype.jewelry_metals.length > 0 && (
-                      <span className="flex items-center gap-1">
-                        <Crown className="w-3 h-3" />
-                        {subtype.jewelry_metals.length} metals
-                      </span>
-                    )}
-                  </div>
-                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                    <Button 
-                      size="icon" 
-                      variant="ghost" 
-                      className="h-7 w-7"
-                      onClick={() => openEditDialog(subtype)}
+                  </Button>
+                );
+              })}
+              {selectedSeason && (
+                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Tier 2: Time Period (only when season selected) */}
+          {selectedSeason && (
+            <div>
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground mb-2 block">
+                Step 2: Time Period (Optional)
+              </Label>
+              <div className="flex gap-2">
+                {TIME_PERIODS.map(period => {
+                  const isActive = selectedTimePeriod === period;
+                  const count = categorizedSubtypes[selectedSeason]?.timePeriods[period]?.length || 0;
+                  
+                  return (
+                    <Button
+                      key={period}
+                      variant={isActive ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedTimePeriod(isActive ? null : period)}
+                      className="gap-1"
                     >
-                      <Pencil className="w-3 h-3" />
+                      {period}
+                      {count > 0 && (
+                        <Badge variant="secondary" className="ml-1 text-[10px]">
+                          {count}
+                        </Badge>
+                      )}
                     </Button>
-                    <Button 
-                      size="icon" 
-                      variant="ghost" 
-                      className="h-7 w-7 text-destructive"
-                      onClick={() => handleDelete(subtype.id)}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Tier 3: Specific Subtypes Preview */}
+          {selectedSeason && !selectedTimePeriod && (
+            <div>
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground mb-2 block">
+                Step 3: Specific Subtypes ({categorizedSubtypes[selectedSeason]?.specific.length || 0} unique names)
+              </Label>
+              <div className="flex flex-wrap gap-1">
+                {categorizedSubtypes[selectedSeason]?.specific.slice(0, 10).map(subtype => (
+                  <Badge key={subtype.id} variant="outline" className="text-xs">
+                    {subtype.name}
+                  </Badge>
+                ))}
+                {(categorizedSubtypes[selectedSeason]?.specific.length || 0) > 10 && (
+                  <Badge variant="secondary" className="text-xs">
+                    +{categorizedSubtypes[selectedSeason].specific.length - 10} more
+                  </Badge>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Subtype Display */}
+      {selectedSeason ? (
+        // Filtered view
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold capitalize flex items-center gap-2">
+              {SEASON_CONFIG[selectedSeason as keyof typeof SEASON_CONFIG]?.label}
+              {selectedTimePeriod && ` › ${selectedTimePeriod}`}
+              <Badge variant="secondary">{filteredSubtypes.length}</Badge>
+            </h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {filteredSubtypes.map(subtype => (
+              <SubtypeCard 
+                key={subtype.id}
+                subtype={subtype}
+                onEdit={openEditDialog}
+                onDelete={handleDelete}
+              />
             ))}
           </div>
         </div>
-      ))}
+      ) : (
+        // Collapsible Season View
+        <div className="space-y-4">
+          {SEASONS.map(season => {
+            const config = SEASON_CONFIG[season];
+            const Icon = config.icon;
+            const isExpanded = expandedSeasons.has(season);
+            const seasonSubtypes = [
+              ...Object.values(categorizedSubtypes[season]?.timePeriods || {}).flat(),
+              ...(categorizedSubtypes[season]?.specific || [])
+            ];
+
+            return (
+              <Collapsible key={season} open={isExpanded} onOpenChange={() => toggleSeason(season)}>
+                <CollapsibleTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    className={cn(
+                      'w-full justify-between p-4 h-auto',
+                      config.bg, config.text
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon className="w-5 h-5" />
+                      <span className="font-semibold text-lg">{config.label}</span>
+                      <Badge variant="secondary">{seasonSubtypes.length}</Badge>
+                    </div>
+                    {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2">
+                  {/* Time Period Subtypes */}
+                  {TIME_PERIODS.map(period => {
+                    const periodSubtypes = categorizedSubtypes[season]?.timePeriods[period] || [];
+                    if (periodSubtypes.length === 0) return null;
+                    
+                    return (
+                      <div key={period} className="mb-4">
+                        <h4 className="text-sm font-medium text-muted-foreground mb-2 ml-2">
+                          {period} {config.label}
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {periodSubtypes.map(subtype => (
+                            <SubtypeCard
+                              key={subtype.id}
+                              subtype={subtype}
+                              onEdit={openEditDialog}
+                              onDelete={handleDelete}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  
+                  {/* Specific Subtypes */}
+                  {(categorizedSubtypes[season]?.specific.length || 0) > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-muted-foreground mb-2 ml-2">
+                        Specific Subtypes
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {categorizedSubtypes[season]?.specific.map(subtype => (
+                          <SubtypeCard
+                            key={subtype.id}
+                            subtype={subtype}
+                            onEdit={openEditDialog}
+                            onDelete={handleDelete}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          })}
+        </div>
+      )}
 
       {subtypes.length === 0 && (
         <Card className="py-12 text-center">
@@ -592,5 +817,86 @@ export function SubtypeManager() {
         </Card>
       )}
     </div>
+  );
+}
+
+function SubtypeCard({ 
+  subtype, 
+  onEdit, 
+  onDelete 
+}: { 
+  subtype: Subtype; 
+  onEdit: (s: Subtype) => void; 
+  onDelete: (id: string) => void;
+}) {
+  const config = SEASON_CONFIG[subtype.season as keyof typeof SEASON_CONFIG];
+  
+  return (
+    <Card 
+      className={cn(
+        'relative group hover:shadow-md transition-shadow',
+        !subtype.is_active && 'opacity-50'
+      )}
+    >
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between">
+          <div>
+            <CardTitle className="text-base">{subtype.name}</CardTitle>
+            <CardDescription className="text-xs font-mono">
+              {subtype.slug}
+            </CardDescription>
+          </div>
+          <Badge className={cn('text-xs', config?.bg, config?.text, config?.border)}>
+            {subtype.palette_effect || subtype.season}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="flex flex-wrap gap-1 mb-3">
+          {subtype.key_colors.slice(0, 4).map(color => (
+            <Badge key={color} variant="outline" className="text-[10px]">
+              {color}
+            </Badge>
+          ))}
+          {subtype.key_colors.length > 4 && (
+            <Badge variant="outline" className="text-[10px]">
+              +{subtype.key_colors.length - 4}
+            </Badge>
+          )}
+        </div>
+        <div className="flex gap-2 text-xs text-muted-foreground">
+          {subtype.fabrics_perfect.length > 0 && (
+            <span className="flex items-center gap-1">
+              <Sparkles className="w-3 h-3" />
+              {subtype.fabrics_perfect.length} fabrics
+            </span>
+          )}
+          {subtype.jewelry_metals.length > 0 && (
+            <span className="flex items-center gap-1">
+              <Crown className="w-3 h-3" />
+              {subtype.jewelry_metals.length} metals
+            </span>
+          )}
+        </div>
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+          <Button 
+            size="icon" 
+            variant="ghost" 
+            className="h-7 w-7"
+            onClick={() => onEdit(subtype)}
+          >
+            <Pencil className="w-3 h-3" />
+          </Button>
+          <Button 
+            size="icon" 
+            variant="ghost" 
+            className="h-7 w-7 text-destructive"
+            onClick={() => onDelete(subtype.id)}
+          >
+            <Trash2 className="w-3 h-3" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
