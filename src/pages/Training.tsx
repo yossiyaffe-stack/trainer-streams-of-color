@@ -9,7 +9,7 @@ import { BulkTrainingTab } from '@/components/training/BulkTrainingTab';
 import { PhotoGridView } from '@/components/training/PhotoGridView';
 import { ProgressDashboard } from '@/components/training/ProgressDashboard';
 import { BatchReanalysis } from '@/components/training/BatchReanalysis';
-import { SubtypeManager } from '@/components/training/SubtypeManager';
+
 import { FacesUploadTab } from '@/components/training/FacesUploadTab';
 
 
@@ -29,7 +29,7 @@ import {
   Table2,
   LayoutGrid,
   FlaskConical,
-  Palette,
+  
   Images,
   Upload
 } from 'lucide-react';
@@ -186,10 +186,6 @@ export default function Training() {
                 <FlaskConical className="w-4 h-4" />
                 Re-Analysis
               </TabsTrigger>
-              <TabsTrigger value="subtypes" className="gap-2 data-[state=active]:bg-background">
-                <Palette className="w-4 h-4" />
-                Manage Subtypes
-              </TabsTrigger>
             </TabsList>
 
             {/* Upload Tab */}
@@ -281,10 +277,6 @@ export default function Training() {
               </div>
             </TabsContent>
 
-            {/* Manage Subtypes Tab */}
-            <TabsContent value="subtypes" className="space-y-6">
-              <SubtypeManager />
-            </TabsContent>
 
             {/* Grid View Tab */}
             <TabsContent value="grid" className="space-y-6">

@@ -7,6 +7,7 @@ import Training from "./pages/Training";
 import Explore from "./pages/Explore";
 import Paintings from "./pages/Paintings";
 import Hub from "./pages/Hub";
+import Subtypes from "./pages/Subtypes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -20,6 +21,7 @@ const App = () => (
         <Routes>
           {/* Main page is now Faces/Training */}
           <Route path="/" element={<Training />} />
+          <Route path="/subtypes" element={<Subtypes />} />
           <Route path="/faces" element={<Navigate to="/" replace />} />
           <Route path="/training" element={<Navigate to="/" replace />} />
           <Route path="/explore" element={<Explore />} />
