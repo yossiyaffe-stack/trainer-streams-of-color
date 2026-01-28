@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { BulkPhoto } from '@/types/training';
 import { Subtype } from '@/data/subtypes';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Select,
   SelectContent,
@@ -9,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Camera, Check, Target, Pencil, BarChart3, Lightbulb } from 'lucide-react';
+import { Camera, Check, Target, Pencil, BarChart3, Lightbulb, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ProgressDashboardProps {
@@ -17,120 +18,188 @@ interface ProgressDashboardProps {
   subtypes: Subtype[];
 }
 
+interface DatasetStats {
+  total_images: number;
+  unlabeled: number;
+  ai_predicted: number;
+  needs_review: number;
+  manually_labeled: number;
+  expert_verified: number;
+  nechama_verified: number;
+  training_ready: number;
+  has_confirmed_subtype: number;
+}
+
+interface SeasonDistribution {
+  confirmed_season: string;
+  confirmed_subtype: string;
+  count: number;
+  verified_count: number;
+  nechama_verified_count: number;
+  avg_ai_confidence: number;
+}
+
 export function ProgressDashboard({ photos, subtypes }: ProgressDashboardProps) {
-  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'all'>('all');
+  const [loading, setLoading] = useState(true);
+  const [datasetStats, setDatasetStats] = useState<DatasetStats | null>(null);
+  const [seasonDistribution, setSeasonDistribution] = useState<SeasonDistribution[]>([]);
 
-  // Calculate overall statistics
+  // Fetch real data from database
+  useEffect(() => {
+    async function fetchDashboardData() {
+      setLoading(true);
+      try {
+        // Fetch dataset stats
+        const { data: statsData, error: statsError } = await supabase
+          .from('v_dataset_stats')
+          .select('*')
+          .limit(1);
+
+        if (statsError) {
+          console.error('Error fetching stats:', statsError);
+        } else if (statsData && statsData.length > 0) {
+          setDatasetStats(statsData[0] as DatasetStats);
+        }
+
+        // Fetch season distribution
+        const { data: distData, error: distError } = await supabase
+          .from('v_subtype_distribution')
+          .select('*');
+
+        if (distError) {
+          console.error('Error fetching distribution:', distError);
+        } else if (distData) {
+          setSeasonDistribution(distData as SeasonDistribution[]);
+        }
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchDashboardData();
+  }, []);
+
+  // Calculate stats from database data
   const stats = useMemo(() => {
-    const confirmed = photos.filter(p => p.status === 'confirmed');
-    const correct = confirmed.filter(p => 
-      p.confirmedSubtype?.id === p.aiPrediction?.id
-    );
-    const correctionsList = confirmed.filter(p => 
-      p.confirmedSubtype?.id !== p.aiPrediction?.id
-    );
+    if (!datasetStats) {
+      return {
+        totalPhotos: 0,
+        confirmed: 0,
+        correct: 0,
+        corrections: 0,
+        accuracy: '0',
+        bySeason: {
+          Spring: { total: 0, correct: 0 },
+          Summer: { total: 0, correct: 0 },
+          Autumn: { total: 0, correct: 0 },
+          Winter: { total: 0, correct: 0 }
+        },
+        byConfidence: {
+          high: { total: 0, correct: 0 },
+          medium: { total: 0, correct: 0 },
+          low: { total: 0, correct: 0 }
+        },
+        commonMistakes: [],
+        avgConfidence: '0'
+      };
+    }
 
-    // By season
-    const bySeason: Record<string, { total: number; correct: number }> = { 
-      Spring: { total: 0, correct: 0 }, 
-      Summer: { total: 0, correct: 0 }, 
-      Autumn: { total: 0, correct: 0 }, 
-      Winter: { total: 0, correct: 0 } 
+    const total = Number(datasetStats.total_images) || 0;
+    const confirmed = Number(datasetStats.expert_verified || 0) + Number(datasetStats.nechama_verified || 0);
+    const trainingReady = Number(datasetStats.training_ready) || 0;
+    const hasSubtype = Number(datasetStats.has_confirmed_subtype) || 0;
+
+    // Calculate by season from distribution
+    const bySeason: Record<string, { total: number; correct: number }> = {
+      Spring: { total: 0, correct: 0 },
+      Summer: { total: 0, correct: 0 },
+      Autumn: { total: 0, correct: 0 },
+      Winter: { total: 0, correct: 0 }
     };
-    confirmed.forEach(p => {
-      const season = (p.confirmedSubtype?.season || p.aiPrediction?.season || '').charAt(0).toUpperCase() + 
-                     (p.confirmedSubtype?.season || p.aiPrediction?.season || '').slice(1);
-      if (bySeason[season]) {
-        bySeason[season].total++;
-        if (p.confirmedSubtype?.id === p.aiPrediction?.id) {
-          bySeason[season].correct++;
+
+    seasonDistribution.forEach(dist => {
+      if (dist.confirmed_season) {
+        const season = dist.confirmed_season.charAt(0).toUpperCase() + dist.confirmed_season.slice(1);
+        if (bySeason[season]) {
+          bySeason[season].total += Number(dist.count) || 0;
+          bySeason[season].correct += Number(dist.verified_count) || 0;
         }
       }
     });
 
-    // By confidence level
+    // Calculate by confidence from distribution
     const byConfidence = {
       high: { total: 0, correct: 0 },
       medium: { total: 0, correct: 0 },
       low: { total: 0, correct: 0 }
     };
-    confirmed.forEach(p => {
-      const level = (p.aiConfidence || 0) >= 80 ? 'high' : (p.aiConfidence || 0) >= 50 ? 'medium' : 'low';
-      byConfidence[level].total++;
-      if (p.confirmedSubtype?.id === p.aiPrediction?.id) {
-        byConfidence[level].correct++;
+
+    seasonDistribution.forEach(dist => {
+      const avgConf = Number(dist.avg_ai_confidence) || 0;
+      const count = Number(dist.count) || 0;
+      const verified = Number(dist.verified_count) || 0;
+      
+      if (avgConf >= 80) {
+        byConfidence.high.total += count;
+        byConfidence.high.correct += verified;
+      } else if (avgConf >= 50) {
+        byConfidence.medium.total += count;
+        byConfidence.medium.correct += verified;
+      } else {
+        byConfidence.low.total += count;
+        byConfidence.low.correct += verified;
       }
     });
 
-    // Common mistakes
-    const mistakeMap = new Map<string, number>();
-    correctionsList.forEach(p => {
-      const key = `${p.aiPrediction?.name || 'Unknown'} → ${p.confirmedSubtype?.name || 'Unknown'}`;
-      mistakeMap.set(key, (mistakeMap.get(key) || 0) + 1);
+    // Calculate average confidence
+    let totalConfidence = 0;
+    let confCount = 0;
+    seasonDistribution.forEach(dist => {
+      if (dist.avg_ai_confidence) {
+        totalConfidence += Number(dist.avg_ai_confidence) * Number(dist.count);
+        confCount += Number(dist.count);
+      }
     });
-    const commonMistakes = Array.from(mistakeMap.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10);
+    const avgConfidence = confCount > 0 ? (totalConfidence / confCount).toFixed(1) : '0';
 
     return {
-      totalPhotos: photos.length,
-      confirmed: confirmed.length,
-      correct: correct.length,
-      corrections: correctionsList.length,
-      accuracy: confirmed.length > 0 ? (correct.length / confirmed.length * 100).toFixed(1) : '0',
+      totalPhotos: total,
+      confirmed,
+      correct: trainingReady,
+      corrections: hasSubtype - trainingReady,
+      accuracy: total > 0 && trainingReady > 0 ? ((trainingReady / hasSubtype) * 100).toFixed(1) : '0',
       bySeason,
       byConfidence,
-      commonMistakes,
-      avgConfidence: confirmed.length > 0 
-        ? (confirmed.reduce((sum, p) => sum + (p.aiConfidence || 0), 0) / confirmed.length).toFixed(1)
-        : '0'
+      commonMistakes: [] as [string, number][],
+      avgConfidence
     };
-  }, [photos]);
+  }, [datasetStats, seasonDistribution]);
 
-  // Subtype performance
+  // Subtype performance from database
   const subtypePerformance = useMemo(() => {
-    const performance = new Map<string, {
-      id: string;
-      name: string;
-      season: string;
-      total: number;
-      correct: number;
-      confidences: number[];
-    }>();
-    
-    photos.filter(p => p.status === 'confirmed').forEach(p => {
-      const subtypeId = p.confirmedSubtype?.id;
-      if (!subtypeId) return;
-      
-      if (!performance.has(subtypeId)) {
-        performance.set(subtypeId, {
-          id: subtypeId,
-          name: p.confirmedSubtype?.name || '',
-          season: p.confirmedSubtype?.season || '',
-          total: 0,
-          correct: 0,
-          confidences: []
-        });
-      }
-      
-      const perf = performance.get(subtypeId)!;
-      perf.total++;
-      if (p.confirmedSubtype?.id === p.aiPrediction?.id) {
-        perf.correct++;
-      }
-      perf.confidences.push(p.aiConfidence || 0);
-    });
-
-    return Array.from(performance.values())
-      .map(p => ({
-        ...p,
-        accuracy: p.total > 0 ? (p.correct / p.total * 100).toFixed(1) : '0',
-        avgConfidence: p.confidences.length > 0 
-          ? (p.confidences.reduce((a, b) => a + b, 0) / p.confidences.length).toFixed(1)
-          : '0'
+    return seasonDistribution
+      .filter(d => d.confirmed_subtype)
+      .map(d => ({
+        id: d.confirmed_subtype,
+        name: d.confirmed_subtype,
+        season: d.confirmed_season || '',
+        total: Number(d.count) || 0,
+        correct: Number(d.verified_count) || 0,
+        accuracy: d.count > 0 ? ((Number(d.verified_count) / Number(d.count)) * 100).toFixed(1) : '0',
+        avgConfidence: Number(d.avg_ai_confidence)?.toFixed(1) || '0'
       }))
       .sort((a, b) => b.total - a.total);
-  }, [photos]);
+  }, [seasonDistribution]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -155,7 +224,7 @@ export function ProgressDashboard({ photos, subtypes }: ProgressDashboardProps) 
         />
         <StatCard 
           label="Corrections Made" 
-          value={stats.corrections}
+          value={stats.corrections > 0 ? stats.corrections : 0}
           icon={<Pencil className="w-4 h-4" />}
           variant="warning"
         />
@@ -269,11 +338,11 @@ export function ProgressDashboard({ photos, subtypes }: ProgressDashboardProps) 
           <div className="space-y-4">
             <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg">
               <span className="text-sm">Photos analyzed</span>
-              <span className="font-semibold">{photos.filter(p => p.extractedFeatures).length}</span>
+              <span className="font-semibold">{stats.totalPhotos}</span>
             </div>
             <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg">
               <span className="text-sm">Corrections applied</span>
-              <span className="font-semibold text-warning">{stats.corrections}</span>
+              <span className="font-semibold text-warning">{stats.corrections > 0 ? stats.corrections : 0}</span>
             </div>
             <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg">
               <span className="text-sm">Current accuracy</span>
@@ -304,7 +373,7 @@ export function ProgressDashboard({ photos, subtypes }: ProgressDashboardProps) 
                   <th className="px-4 py-3 text-left font-medium">Subtype</th>
                   <th className="px-4 py-3 text-left font-medium">Season</th>
                   <th className="px-4 py-3 text-center font-medium">Samples</th>
-                  <th className="px-4 py-3 text-center font-medium">Accuracy</th>
+                  <th className="px-4 py-3 text-center font-medium">Verified</th>
                   <th className="px-4 py-3 text-center font-medium">Avg Confidence</th>
                   <th className="px-4 py-3 font-medium">Visual</th>
                 </tr>
@@ -321,12 +390,10 @@ export function ProgressDashboard({ photos, subtypes }: ProgressDashboardProps) 
                       <Badge 
                         variant="outline"
                         className={cn(
-                          parseFloat(perf.accuracy) >= 80 ? 'border-success text-success' :
-                          parseFloat(perf.accuracy) >= 50 ? 'border-warning text-warning' :
-                          'border-destructive text-destructive'
+                          perf.correct > 0 ? 'border-success text-success' : 'border-muted text-muted-foreground'
                         )}
                       >
-                        {perf.accuracy}%
+                        {perf.correct}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-center">{perf.avgConfidence}%</td>
@@ -335,11 +402,11 @@ export function ProgressDashboard({ photos, subtypes }: ProgressDashboardProps) 
                         <div 
                           className={cn(
                             'h-full',
-                            parseFloat(perf.accuracy) >= 80 ? 'bg-success' :
-                            parseFloat(perf.accuracy) >= 50 ? 'bg-warning' :
+                            parseFloat(perf.avgConfidence) >= 80 ? 'bg-success' :
+                            parseFloat(perf.avgConfidence) >= 50 ? 'bg-warning' :
                             'bg-destructive'
                           )}
-                          style={{ width: `${perf.accuracy}%` }}
+                          style={{ width: `${perf.avgConfidence}%` }}
                         />
                       </div>
                     </td>
@@ -407,7 +474,7 @@ function SeasonBar({ season, total, correct }: { season: string; total: number; 
         {total > 0 && (
           <div 
             className={cn('h-full flex items-center justify-end pr-2', colors.bar)}
-            style={{ width: `${accuracy}%` }}
+            style={{ width: `${Math.max(accuracy, 10)}%` }}
           >
             <span className="text-background text-xs font-medium">
               {accuracy.toFixed(0)}%
