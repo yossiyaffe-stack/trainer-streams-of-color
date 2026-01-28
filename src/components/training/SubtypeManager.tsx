@@ -10,9 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Loader2, Palette, Sparkles, Crown, ChevronDown, ChevronRight, Flower2, Sun, Leaf, Snowflake } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Palette, Sparkles, Crown, Flower2, Sun, Leaf, Snowflake, X, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Subtype {
@@ -20,6 +20,7 @@ interface Subtype {
   slug: string;
   name: string;
   season: string;
+  time_period: string | null;
   description: string | null;
   palette_effect: string | null;
   key_colors: string[];
@@ -47,6 +48,7 @@ const EMPTY_SUBTYPE: Omit<Subtype, 'id'> = {
   slug: '',
   name: '',
   season: 'spring',
+  time_period: null,
   description: '',
   palette_effect: '',
   key_colors: [],
@@ -71,7 +73,7 @@ const EMPTY_SUBTYPE: Omit<Subtype, 'id'> = {
 };
 
 const SEASONS = ['spring', 'summer', 'autumn', 'winter'] as const;
-const TIME_PERIODS = ['Early', 'Mid', 'Late'] as const;
+const TIME_PERIODS = ['early', 'mid', 'late'] as const;
 
 const SEASON_CONFIG = {
   spring: { 
@@ -180,7 +182,6 @@ export function SubtypeManager() {
   // 3-Tier Filter State
   const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
   const [selectedTimePeriod, setSelectedTimePeriod] = useState<string | null>(null);
-  const [expandedSeasons, setExpandedSeasons] = useState<Set<string>>(new Set(SEASONS));
 
   useEffect(() => {
     fetchSubtypes();
@@ -192,10 +193,11 @@ export function SubtypeManager() {
         .from('subtypes')
         .select('*')
         .order('season')
-        .order('display_order');
+        .order('time_period')
+        .order('name');
 
       if (error) throw error;
-      setSubtypes(data || []);
+      setSubtypes((data || []) as Subtype[]);
     } catch (error) {
       console.error('Error fetching subtypes:', error);
       toast.error('Failed to load subtypes');
@@ -204,33 +206,32 @@ export function SubtypeManager() {
     }
   };
 
-  // Categorize subtypes
-  const categorizedSubtypes = useMemo(() => {
+  // Organize subtypes by season → time_period → names
+  const organizedData = useMemo(() => {
     const result: Record<string, {
+      total: number;
       timePeriods: Record<string, Subtype[]>;
-      specific: Subtype[];
+      unassigned: Subtype[];
     }> = {};
 
     SEASONS.forEach(season => {
-      result[season] = { timePeriods: {}, specific: [] };
-      TIME_PERIODS.forEach(tp => {
-        result[season].timePeriods[tp] = [];
-      });
+      result[season] = { 
+        total: 0, 
+        timePeriods: { early: [], mid: [], late: [] },
+        unassigned: []
+      };
     });
 
     subtypes.forEach(subtype => {
       const season = subtype.season.toLowerCase();
       if (!result[season]) return;
 
-      // Check if it's a time period subtype (Early X, Mid X, Late X)
-      const timePeriodMatch = TIME_PERIODS.find(tp => 
-        subtype.name.toLowerCase().startsWith(tp.toLowerCase())
-      );
-
-      if (timePeriodMatch) {
-        result[season].timePeriods[timePeriodMatch].push(subtype);
+      result[season].total++;
+      
+      if (subtype.time_period && TIME_PERIODS.includes(subtype.time_period as any)) {
+        result[season].timePeriods[subtype.time_period].push(subtype);
       } else {
-        result[season].specific.push(subtype);
+        result[season].unassigned.push(subtype);
       }
     });
 
@@ -241,7 +242,7 @@ export function SubtypeManager() {
   const filteredSubtypes = useMemo(() => {
     if (!selectedSeason) return subtypes;
 
-    const seasonData = categorizedSubtypes[selectedSeason];
+    const seasonData = organizedData[selectedSeason];
     if (!seasonData) return [];
 
     if (selectedTimePeriod) {
@@ -249,45 +250,20 @@ export function SubtypeManager() {
     }
 
     // Return all for the season
-    const allForSeason = [
-      ...Object.values(seasonData.timePeriods).flat(),
-      ...seasonData.specific
+    return [
+      ...seasonData.timePeriods.early,
+      ...seasonData.timePeriods.mid,
+      ...seasonData.timePeriods.late,
+      ...seasonData.unassigned
     ];
-    return allForSeason;
-  }, [subtypes, selectedSeason, selectedTimePeriod, categorizedSubtypes]);
-
-  // Stats per season
-  const seasonStats = useMemo(() => {
-    const stats: Record<string, { total: number; timePeriod: number; specific: number }> = {};
-    SEASONS.forEach(season => {
-      const data = categorizedSubtypes[season];
-      const timePeriodCount = Object.values(data.timePeriods).flat().length;
-      stats[season] = {
-        total: timePeriodCount + data.specific.length,
-        timePeriod: timePeriodCount,
-        specific: data.specific.length
-      };
-    });
-    return stats;
-  }, [categorizedSubtypes]);
-
-  const toggleSeason = (season: string) => {
-    setExpandedSeasons(prev => {
-      const next = new Set(prev);
-      if (next.has(season)) {
-        next.delete(season);
-      } else {
-        next.add(season);
-      }
-      return next;
-    });
-  };
+  }, [subtypes, selectedSeason, selectedTimePeriod, organizedData]);
 
   const openCreateDialog = () => {
     setEditingSubtype(null);
     setFormData({
       ...EMPTY_SUBTYPE,
-      season: selectedSeason || 'spring'
+      season: selectedSeason || 'spring',
+      time_period: selectedTimePeriod || null
     });
     setDialogOpen(true);
   };
@@ -298,6 +274,7 @@ export function SubtypeManager() {
       slug: subtype.slug,
       name: subtype.name,
       season: subtype.season,
+      time_period: subtype.time_period,
       description: subtype.description || '',
       palette_effect: subtype.palette_effect || '',
       key_colors: subtype.key_colors || [],
@@ -377,6 +354,17 @@ export function SubtypeManager() {
     setSelectedTimePeriod(null);
   };
 
+  const getTimePeriodCounts = (season: string) => {
+    const data = organizedData[season];
+    if (!data) return { early: 0, mid: 0, late: 0, unassigned: 0 };
+    return {
+      early: data.timePeriods.early.length,
+      mid: data.timePeriods.mid.length,
+      late: data.timePeriods.late.length,
+      unassigned: data.unassigned.length
+    };
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -402,7 +390,7 @@ export function SubtypeManager() {
               Add Subtype
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden">
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden bg-card">
             <DialogHeader>
               <DialogTitle>
                 {editingSubtype ? 'Edit Subtype' : 'Create New Subtype'}
@@ -424,18 +412,20 @@ export function SubtypeManager() {
                       <Input
                         value={formData.slug}
                         onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') }))}
-                        placeholder="e.g., warm-spring"
+                        placeholder="e.g., starlit-winter"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Display Name</Label>
+                      <Label>Display Name (Unique)</Label>
                       <Input
                         value={formData.name}
                         onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                        placeholder="e.g., Warm Spring"
+                        placeholder="e.g., Starlit Winter"
                       />
                     </div>
                   </div>
+                  
+                  {/* Season & Time Period Selection */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Season</Label>
@@ -446,7 +436,7 @@ export function SubtypeManager() {
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-popover">
                           <SelectItem value="spring">🌷 Spring</SelectItem>
                           <SelectItem value="summer">🌸 Summer</SelectItem>
                           <SelectItem value="autumn">🍂 Autumn</SelectItem>
@@ -455,13 +445,31 @@ export function SubtypeManager() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Palette Effect</Label>
-                      <Input
-                        value={formData.palette_effect || ''}
-                        onChange={(e) => setFormData(prev => ({ ...prev, palette_effect: e.target.value }))}
-                        placeholder="e.g., Warm & Bright"
-                      />
+                      <Label>Time Period</Label>
+                      <Select 
+                        value={formData.time_period || 'none'} 
+                        onValueChange={(v) => setFormData(prev => ({ ...prev, time_period: v === 'none' ? null : v }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select time period" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-popover">
+                          <SelectItem value="none">— Not assigned —</SelectItem>
+                          <SelectItem value="early">Early</SelectItem>
+                          <SelectItem value="mid">Mid</SelectItem>
+                          <SelectItem value="late">Late</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Palette Effect</Label>
+                    <Input
+                      value={formData.palette_effect || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, palette_effect: e.target.value }))}
+                      placeholder="e.g., Warm & Bright"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Description</Label>
@@ -599,26 +607,64 @@ export function SubtypeManager() {
         </Dialog>
       </div>
 
-      {/* 3-Tier Filter System */}
-      <Card className="p-4">
-        <div className="space-y-4">
+      {/* 3-Tier Navigation */}
+      <Card className="p-6">
+        <div className="space-y-6">
+          {/* Breadcrumb */}
+          {(selectedSeason || selectedTimePeriod) && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground pb-2 border-b">
+              <button onClick={clearFilters} className="hover:text-foreground">
+                All Seasons
+              </button>
+              {selectedSeason && (
+                <>
+                  <ArrowRight className="w-3 h-3" />
+                  <button 
+                    onClick={() => setSelectedTimePeriod(null)}
+                    className={cn(
+                      "hover:text-foreground capitalize",
+                      !selectedTimePeriod && "text-foreground font-medium"
+                    )}
+                  >
+                    {SEASON_CONFIG[selectedSeason as keyof typeof SEASON_CONFIG]?.label}
+                  </button>
+                </>
+              )}
+              {selectedTimePeriod && (
+                <>
+                  <ArrowRight className="w-3 h-3" />
+                  <span className="text-foreground font-medium capitalize">{selectedTimePeriod}</span>
+                </>
+              )}
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="ml-auto h-6 px-2"
+                onClick={clearFilters}
+              >
+                <X className="w-3 h-3 mr-1" />
+                Clear
+              </Button>
+            </div>
+          )}
+
           {/* Tier 1: Season Selection */}
           <div>
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground mb-2 block">
-              Step 1: Select Season
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground mb-3 block">
+              {!selectedSeason ? '1. Select Season' : 'Season'}
             </Label>
             <div className="flex flex-wrap gap-2">
               {SEASONS.map(season => {
                 const config = SEASON_CONFIG[season];
                 const Icon = config.icon;
                 const isActive = selectedSeason === season;
-                const stats = seasonStats[season];
+                const count = organizedData[season]?.total || 0;
                 
                 return (
                   <Button
                     key={season}
                     variant="outline"
-                    size="sm"
+                    size={selectedSeason && !isActive ? 'sm' : 'default'}
                     onClick={() => {
                       setSelectedSeason(isActive ? null : season);
                       setSelectedTimePeriod(null);
@@ -627,76 +673,88 @@ export function SubtypeManager() {
                       'gap-2 transition-all',
                       isActive 
                         ? `${config.activeBg} ${config.activeText} border-transparent` 
-                        : `${config.bg} ${config.text} ${config.border}`
+                        : `${config.bg} ${config.text} ${config.border}`,
+                      selectedSeason && !isActive && 'opacity-60'
                     )}
                   >
                     <Icon className="w-4 h-4" />
                     {config.label}
-                    <Badge variant="secondary" className={cn(
-                      'ml-1 text-[10px]',
-                      isActive && 'bg-white/20 text-inherit'
-                    )}>
-                      {stats.total}
+                    <Badge 
+                      variant="secondary" 
+                      className={cn(
+                        'ml-1 text-[10px]',
+                        isActive && 'bg-white/20 text-inherit'
+                      )}
+                    >
+                      {count}
                     </Badge>
                   </Button>
                 );
               })}
-              {selectedSeason && (
-                <Button variant="ghost" size="sm" onClick={clearFilters}>
-                  Clear
-                </Button>
-              )}
             </div>
           </div>
 
           {/* Tier 2: Time Period (only when season selected) */}
           {selectedSeason && (
             <div>
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground mb-2 block">
-                Step 2: Time Period (Optional)
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground mb-3 block">
+                2. Select Time Period
               </Label>
-              <div className="flex gap-2">
+              <ToggleGroup 
+                type="single" 
+                value={selectedTimePeriod || ''} 
+                onValueChange={(v) => setSelectedTimePeriod(v || null)}
+                className="justify-start"
+              >
                 {TIME_PERIODS.map(period => {
-                  const isActive = selectedTimePeriod === period;
-                  const count = categorizedSubtypes[selectedSeason]?.timePeriods[period]?.length || 0;
+                  const counts = getTimePeriodCounts(selectedSeason);
+                  const count = counts[period];
                   
                   return (
-                    <Button
-                      key={period}
-                      variant={isActive ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setSelectedTimePeriod(isActive ? null : period)}
-                      className="gap-1"
+                    <ToggleGroupItem 
+                      key={period} 
+                      value={period}
+                      className="capitalize gap-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
                     >
-                      {period}
-                      {count > 0 && (
-                        <Badge variant="secondary" className="ml-1 text-[10px]">
-                          {count}
-                        </Badge>
-                      )}
-                    </Button>
+                      {period.charAt(0).toUpperCase() + period.slice(1)}
+                      <Badge variant="secondary" className="text-[10px]">
+                        {count}
+                      </Badge>
+                    </ToggleGroupItem>
                   );
                 })}
-              </div>
+              </ToggleGroup>
+              
+              {/* Show unassigned count */}
+              {organizedData[selectedSeason]?.unassigned.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  + {organizedData[selectedSeason].unassigned.length} subtypes without time period assigned
+                </p>
+              )}
             </div>
           )}
 
-          {/* Tier 3: Specific Subtypes Preview */}
-          {selectedSeason && !selectedTimePeriod && (
+          {/* Tier 3: Unique Names Preview */}
+          {selectedSeason && selectedTimePeriod && (
             <div>
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground mb-2 block">
-                Step 3: Specific Subtypes ({categorizedSubtypes[selectedSeason]?.specific.length || 0} unique names)
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground mb-3 block">
+                3. Unique Subtypes ({filteredSubtypes.length})
               </Label>
-              <div className="flex flex-wrap gap-1">
-                {categorizedSubtypes[selectedSeason]?.specific.slice(0, 10).map(subtype => (
-                  <Badge key={subtype.id} variant="outline" className="text-xs">
+              <div className="flex flex-wrap gap-2">
+                {filteredSubtypes.map(subtype => (
+                  <Badge 
+                    key={subtype.id} 
+                    variant="outline" 
+                    className="text-sm py-1 px-3 cursor-pointer hover:bg-accent"
+                    onClick={() => openEditDialog(subtype)}
+                  >
                     {subtype.name}
                   </Badge>
                 ))}
-                {(categorizedSubtypes[selectedSeason]?.specific.length || 0) > 10 && (
-                  <Badge variant="secondary" className="text-xs">
-                    +{categorizedSubtypes[selectedSeason].specific.length - 10} more
-                  </Badge>
+                {filteredSubtypes.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    No subtypes in {selectedTimePeriod} {SEASON_CONFIG[selectedSeason as keyof typeof SEASON_CONFIG]?.label}
+                  </p>
                 )}
               </div>
             </div>
@@ -704,17 +762,27 @@ export function SubtypeManager() {
         </div>
       </Card>
 
-      {/* Subtype Display */}
-      {selectedSeason ? (
-        // Filtered view
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold capitalize flex items-center gap-2">
-              {SEASON_CONFIG[selectedSeason as keyof typeof SEASON_CONFIG]?.label}
-              {selectedTimePeriod && ` › ${selectedTimePeriod}`}
-              <Badge variant="secondary">{filteredSubtypes.length}</Badge>
-            </h3>
-          </div>
+      {/* Subtype Grid */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold flex items-center gap-2">
+            {selectedSeason ? (
+              <>
+                {SEASON_CONFIG[selectedSeason as keyof typeof SEASON_CONFIG]?.label}
+                {selectedTimePeriod && ` › ${selectedTimePeriod.charAt(0).toUpperCase() + selectedTimePeriod.slice(1)}`}
+              </>
+            ) : (
+              'All Subtypes'
+            )}
+            <Badge variant="secondary">{filteredSubtypes.length}</Badge>
+          </h3>
+          <Button size="sm" variant="outline" onClick={openCreateDialog}>
+            <Plus className="w-4 h-4 mr-1" />
+            Add
+          </Button>
+        </div>
+        
+        {filteredSubtypes.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {filteredSubtypes.map(subtype => (
               <SubtypeCard 
@@ -725,97 +793,22 @@ export function SubtypeManager() {
               />
             ))}
           </div>
-        </div>
-      ) : (
-        // Collapsible Season View
-        <div className="space-y-4">
-          {SEASONS.map(season => {
-            const config = SEASON_CONFIG[season];
-            const Icon = config.icon;
-            const isExpanded = expandedSeasons.has(season);
-            const seasonSubtypes = [
-              ...Object.values(categorizedSubtypes[season]?.timePeriods || {}).flat(),
-              ...(categorizedSubtypes[season]?.specific || [])
-            ];
-
-            return (
-              <Collapsible key={season} open={isExpanded} onOpenChange={() => toggleSeason(season)}>
-                <CollapsibleTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    className={cn(
-                      'w-full justify-between p-4 h-auto',
-                      config.bg, config.text
-                    )}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Icon className="w-5 h-5" />
-                      <span className="font-semibold text-lg">{config.label}</span>
-                      <Badge variant="secondary">{seasonSubtypes.length}</Badge>
-                    </div>
-                    {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="mt-2">
-                  {/* Time Period Subtypes */}
-                  {TIME_PERIODS.map(period => {
-                    const periodSubtypes = categorizedSubtypes[season]?.timePeriods[period] || [];
-                    if (periodSubtypes.length === 0) return null;
-                    
-                    return (
-                      <div key={period} className="mb-4">
-                        <h4 className="text-sm font-medium text-muted-foreground mb-2 ml-2">
-                          {period} {config.label}
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                          {periodSubtypes.map(subtype => (
-                            <SubtypeCard
-                              key={subtype.id}
-                              subtype={subtype}
-                              onEdit={openEditDialog}
-                              onDelete={handleDelete}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  
-                  {/* Specific Subtypes */}
-                  {(categorizedSubtypes[season]?.specific.length || 0) > 0 && (
-                    <div>
-                      <h4 className="text-sm font-medium text-muted-foreground mb-2 ml-2">
-                        Specific Subtypes
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {categorizedSubtypes[season]?.specific.map(subtype => (
-                          <SubtypeCard
-                            key={subtype.id}
-                            subtype={subtype}
-                            onEdit={openEditDialog}
-                            onDelete={handleDelete}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </CollapsibleContent>
-              </Collapsible>
-            );
-          })}
-        </div>
-      )}
-
-      {subtypes.length === 0 && (
-        <Card className="py-12 text-center">
-          <Palette className="w-12 h-12 mx-auto mb-4 text-muted-foreground/30" />
-          <p className="text-muted-foreground">No subtypes configured yet</p>
-          <Button onClick={openCreateDialog} className="mt-4">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Your First Subtype
-          </Button>
-        </Card>
-      )}
+        ) : (
+          <Card className="py-12 text-center">
+            <Palette className="w-12 h-12 mx-auto mb-4 text-muted-foreground/30" />
+            <p className="text-muted-foreground">
+              {selectedSeason 
+                ? `No subtypes in this selection` 
+                : 'No subtypes configured yet'
+              }
+            </p>
+            <Button onClick={openCreateDialog} className="mt-4">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Subtype
+            </Button>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }
@@ -834,16 +827,20 @@ function SubtypeCard({
   return (
     <Card 
       className={cn(
-        'relative group hover:shadow-md transition-shadow',
+        'relative group hover:shadow-md transition-shadow cursor-pointer',
         !subtype.is_active && 'opacity-50'
       )}
+      onClick={() => onEdit(subtype)}
     >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
           <div>
             <CardTitle className="text-base">{subtype.name}</CardTitle>
-            <CardDescription className="text-xs font-mono">
-              {subtype.slug}
+            <CardDescription className="text-xs">
+              {subtype.time_period && (
+                <span className="capitalize">{subtype.time_period} • </span>
+              )}
+              <span className="font-mono">{subtype.slug}</span>
             </CardDescription>
           </div>
           <Badge className={cn('text-xs', config?.bg, config?.text, config?.border)}>
@@ -883,7 +880,7 @@ function SubtypeCard({
             size="icon" 
             variant="ghost" 
             className="h-7 w-7"
-            onClick={() => onEdit(subtype)}
+            onClick={(e) => { e.stopPropagation(); onEdit(subtype); }}
           >
             <Pencil className="w-3 h-3" />
           </Button>
@@ -891,7 +888,7 @@ function SubtypeCard({
             size="icon" 
             variant="ghost" 
             className="h-7 w-7 text-destructive"
-            onClick={() => onDelete(subtype.id)}
+            onClick={(e) => { e.stopPropagation(); onDelete(subtype.id); }}
           >
             <Trash2 className="w-3 h-3" />
           </Button>

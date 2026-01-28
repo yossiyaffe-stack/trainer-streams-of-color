@@ -478,6 +478,7 @@ export type Database = {
           season: string
           silhouettes: string[] | null
           slug: string
+          time_period: string | null
           updated_at: string | null
         }
         Insert: {
@@ -507,6 +508,7 @@ export type Database = {
           season: string
           silhouettes?: string[] | null
           slug: string
+          time_period?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -536,6 +538,7 @@ export type Database = {
           season?: string
           silhouettes?: string[] | null
           slug?: string
+          time_period?: string | null
           updated_at?: string | null
         }
         Relationships: []
