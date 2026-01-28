@@ -88,6 +88,7 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
   const [deleting, setDeleting] = useState(false);
   const [subtypes, setSubtypes] = useState<Subtype[]>([]);
   const [selectedSubtype, setSelectedSubtype] = useState<string | null>(null);
+  const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loadingSubtypes, setLoadingSubtypes] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
@@ -178,12 +179,18 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
     fetchSubtypes();
   }, []);
 
-  // Initialize selected subtype from painting
+  // Initialize selected season and subtype from painting
   useEffect(() => {
+    // Set season from painting
+    if (painting.suggested_season) {
+      setSelectedSeason(painting.suggested_season.toLowerCase());
+    }
+    // Set subtype if exists
     if (painting.palette_effect && subtypes.length > 0) {
       const match = subtypes.find(s => s.name === painting.palette_effect || s.slug === painting.palette_effect);
       if (match) {
         setSelectedSubtype(match.id);
+        setSelectedSeason(match.season.toLowerCase());
       }
     }
   }, [painting, subtypes]);
@@ -195,6 +202,53 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
     acc[season].push(subtype);
     return acc;
   }, {} as Record<string, Subtype[]>);
+
+  // Get subtypes for selected season only
+  const filteredSubtypes = selectedSeason ? (subtypesBySeason[selectedSeason] || []) : [];
+
+  // Handle season-only selection (no specific subtype)
+  const handleSeasonChange = async (season: string) => {
+    setSelectedSeason(season);
+    setSelectedSubtype(null); // Clear subtype when season changes
+    setSaving(true);
+    
+    try {
+      const capitalizedSeason = season.charAt(0).toUpperCase() + season.slice(1);
+      
+      const { error } = await supabase
+        .from('paintings')
+        .update({
+          suggested_season: capitalizedSeason,
+          status: 'palette',
+        })
+        .eq('id', painting.id);
+
+      if (error) throw error;
+
+      setPainting(prev => ({
+        ...prev,
+        suggested_season: capitalizedSeason,
+        status: 'palette',
+      }));
+
+      setIsPalettePainting(true);
+
+      toast({
+        title: `${SEASON_EMOJIS[season]} Season Set`,
+        description: `Classified as ${capitalizedSeason}`,
+      });
+
+      onUpdate?.();
+    } catch (err) {
+      toast({
+        title: 'Save Failed',
+        description: err instanceof Error ? err.message : 'Could not save season',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSubtypeChange = async (subtypeId: string) => {
     setSelectedSubtype(subtypeId);
@@ -641,43 +695,60 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
               {loadingSubtypes ? (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Loading subtypes...
+                  Loading...
                 </div>
-              ) : subtypes.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No subtypes found. Add subtypes in the Subtype Manager first.
-                </p>
               ) : (
                 <div className="space-y-3">
-                  <Select
-                    value={selectedSubtype || ''}
-                    onValueChange={handleSubtypeChange}
-                    disabled={saving}
-                  >
-                    <SelectTrigger className="w-full bg-background">
-                      <SelectValue placeholder="Select Nechama's subtype..." />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover border border-border shadow-lg z-[200] max-h-80">
-                      {['spring', 'summer', 'autumn', 'winter'].map(season => (
-                        subtypesBySeason[season]?.length > 0 && (
-                          <SelectGroup key={season}>
-                            <SelectLabel className="flex items-center gap-2 text-xs uppercase tracking-wide font-semibold py-2 px-3 bg-muted/50">
-                              {SEASON_EMOJIS[season]} {season.charAt(0).toUpperCase() + season.slice(1)} ({subtypesBySeason[season].length})
-                            </SelectLabel>
-                            {subtypesBySeason[season].map(subtype => (
-                              <SelectItem 
-                                key={subtype.id} 
-                                value={subtype.id}
-                                className="pl-6"
-                              >
-                                {subtype.name}
-                              </SelectItem>
-                            ))}
-                          </SelectGroup>
-                        )
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {/* Step 1: Season Selection (Required) */}
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Step 1: Season</label>
+                    <Select
+                      value={selectedSeason || ''}
+                      onValueChange={handleSeasonChange}
+                      disabled={saving}
+                    >
+                      <SelectTrigger className="w-full bg-background">
+                        <SelectValue placeholder="Select season..." />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover border border-border shadow-lg z-[200]">
+                        {['spring', 'summer', 'autumn', 'winter'].map(season => (
+                          <SelectItem key={season} value={season}>
+                            <span className="flex items-center gap-2">
+                              {SEASON_EMOJIS[season]} {season.charAt(0).toUpperCase() + season.slice(1)}
+                              <span className="text-muted-foreground text-xs">
+                                ({subtypesBySeason[season]?.length || 0} subtypes)
+                              </span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Step 2: Specific Subtype (Optional) */}
+                  {selectedSeason && (
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1 block">
+                        Step 2: Specific Type <span className="text-muted-foreground/60">(optional)</span>
+                      </label>
+                      <Select
+                        value={selectedSubtype || ''}
+                        onValueChange={handleSubtypeChange}
+                        disabled={saving}
+                      >
+                        <SelectTrigger className="w-full bg-background">
+                          <SelectValue placeholder={`Just "${selectedSeason.charAt(0).toUpperCase() + selectedSeason.slice(1)}" is fine, or pick specific...`} />
+                        </SelectTrigger>
+                        <SelectContent className="bg-popover border border-border shadow-lg z-[200] max-h-60">
+                          {filteredSubtypes.map(subtype => (
+                            <SelectItem key={subtype.id} value={subtype.id}>
+                              {subtype.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   <AddSubtypeDialog
                     onSubtypeAdded={(newSubtype) => {
@@ -686,15 +757,15 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
                     }}
                   />
 
-                  {selectedSubtypeData && (
-                    <div className="flex items-center gap-2 text-sm">
+                  {/* Current Classification Display */}
+                  {(selectedSeason || selectedSubtypeData) && (
+                    <div className="flex items-center gap-2 text-sm pt-1 border-t border-primary/10">
                       <Check className="w-4 h-4 text-green-600" />
                       <span className="text-muted-foreground">
                         Classified as{' '}
                         <span className="font-medium text-foreground">
-                          {selectedSubtypeData.name}
+                          {selectedSubtypeData ? selectedSubtypeData.name : (selectedSeason ? selectedSeason.charAt(0).toUpperCase() + selectedSeason.slice(1) : '')}
                         </span>
-                        {' '}({selectedSubtypeData.season})
                       </span>
                       {saving && <Loader2 className="w-3 h-3 animate-spin" />}
                     </div>
