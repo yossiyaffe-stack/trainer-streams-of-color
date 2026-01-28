@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { X, Sparkles, Eye, Palette, User, Sun, Moon, Loader2, Check, Trash2, Save, MessageSquare } from 'lucide-react';
+import { X, Sparkles, Eye, Palette, User, Sun, Moon, Loader2, Check, Trash2, Save, MessageSquare, Upload } from 'lucide-react';
+import { pushFaceConclusion, type FaceConclusion } from '@/lib/dataHubApi';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -130,6 +131,7 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [subtypes, setSubtypes] = useState<SubtypeOption[]>([]);
   const label = face.color_label;
 
@@ -282,6 +284,48 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
     return data.publicUrl;
   };
 
+  // Push data to The Hub
+  const pushToHub = async (subtypeName: string) => {
+    // Find the subtype slug
+    const subtype = subtypes.find(s => s.name === subtypeName);
+    if (!subtype) {
+      console.warn('Could not find subtype slug for Hub sync:', subtypeName);
+      return false;
+    }
+
+    // Get the full image URL
+    let photoUrl = face.storage_path;
+    if (!photoUrl.startsWith('http')) {
+      const { data } = supabase.storage
+        .from('face-images')
+        .getPublicUrl(face.storage_path);
+      photoUrl = data.publicUrl;
+    }
+
+    const conclusion: FaceConclusion = {
+      source: 'training_website',
+      face_image_id: face.id,
+      storage_path: photoUrl,
+      confirmed_season: editFields.confirmed_season || label?.confirmed_season || subtype.season.toLowerCase(),
+      confirmed_subtype: subtype.slug,
+      skin_hex: editFields.skin_hex || label?.skin_hex || null,
+      skin_tone_name: editFields.skin_tone_name || label?.skin_tone_name || null,
+      undertone: editFields.undertone || label?.undertone || null,
+      eye_hex: editFields.eye_hex || label?.eye_hex || null,
+      eye_color_name: editFields.eye_color_name || label?.eye_color_name || null,
+      hair_hex: editFields.hair_hex || label?.hair_hex || null,
+      hair_color_name: editFields.hair_color_name || label?.hair_color_name || null,
+      contrast_level: editFields.contrast_level || label?.contrast_level || null,
+      depth: editFields.depth || label?.depth || null,
+      verified_by: 'expert',
+      verified_at: new Date().toISOString(),
+      notes: editFields.notes || label?.notes || undefined,
+    };
+
+    const success = await pushFaceConclusion(conclusion);
+    return success;
+  };
+
   const confirmPrediction = async () => {
     if (!label?.ai_predicted_subtype || !label?.confirmed_season) return;
     
@@ -298,12 +342,105 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
 
       if (error) throw error;
 
-      toast({ title: 'Confirmed', description: 'Prediction marked as verified' });
+      // Automatically push to The Hub
+      const hubSuccess = await pushToHub(label.ai_predicted_subtype);
+      
+      toast({ 
+        title: 'Confirmed & Synced', 
+        description: hubSuccess 
+          ? 'Prediction verified and synced to The Hub' 
+          : 'Prediction verified (Hub sync failed - will retry later)'
+      });
       onUpdate();
     } catch (err) {
       toast({ title: 'Error', description: 'Failed to confirm', variant: 'destructive' });
     } finally {
       setConfirming(false);
+    }
+  };
+
+  // Mark as Expert Verified and sync to Hub
+  const handleVerifyAndSync = async () => {
+    if (!editFields.confirmed_subtype) {
+      toast({ 
+        title: 'Select Subtype', 
+        description: 'Please select a subtype before verifying',
+        variant: 'destructive' 
+      });
+      return;
+    }
+
+    setVerifying(true);
+    try {
+      // First save the changes
+      const { data: existingLabel } = await supabase
+        .from('color_labels')
+        .select('id')
+        .eq('face_image_id', face.id)
+        .maybeSingle();
+
+      type SeasonType = 'spring' | 'summer' | 'autumn' | 'winter';
+      type SkinToneName = typeof SKIN_TONE_OPTIONS[number];
+      type EyeColorName = typeof EYE_COLOR_OPTIONS[number];
+      type HairColorName = typeof HAIR_COLOR_OPTIONS[number];
+      type UndertoneType = typeof UNDERTONE_OPTIONS[number];
+      type ContrastType = typeof CONTRAST_OPTIONS[number];
+      type DepthType = typeof DEPTH_OPTIONS[number];
+
+      const isDisagreement = label?.ai_predicted_subtype && 
+        editFields.confirmed_subtype !== label.ai_predicted_subtype;
+
+      const updateData = {
+        skin_hex: editFields.skin_hex || null,
+        skin_tone_name: (editFields.skin_tone_name || null) as SkinToneName | null,
+        undertone: (editFields.undertone || null) as UndertoneType | null,
+        eye_hex: editFields.eye_hex || null,
+        eye_color_name: (editFields.eye_color_name || null) as EyeColorName | null,
+        hair_hex: editFields.hair_hex || null,
+        hair_color_name: (editFields.hair_color_name || null) as HairColorName | null,
+        contrast_level: (editFields.contrast_level || null) as ContrastType | null,
+        depth: (editFields.depth || null) as DepthType | null,
+        confirmed_season: (editFields.confirmed_season || null) as SeasonType | null,
+        confirmed_subtype: editFields.confirmed_subtype || null,
+        had_disagreement: isDisagreement,
+        disagreement_notes: editFields.disagreement_notes || null,
+        notes: editFields.notes || null,
+        label_status: 'expert_verified' as const,
+        verified_at: new Date().toISOString(),
+        verified_by: 'expert',
+      };
+
+      if (existingLabel) {
+        const { error } = await supabase
+          .from('color_labels')
+          .update(updateData)
+          .eq('face_image_id', face.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('color_labels')
+          .insert([{ ...updateData, face_image_id: face.id }]);
+        if (error) throw error;
+      }
+
+      // Push to The Hub
+      const hubSuccess = await pushToHub(editFields.confirmed_subtype);
+      
+      toast({ 
+        title: 'Expert Verified & Synced', 
+        description: hubSuccess 
+          ? 'Marked as verified and synced to The Hub' 
+          : 'Marked as verified (Hub sync pending)'
+      });
+      onUpdate();
+    } catch (err) {
+      toast({ 
+        title: 'Verification Failed', 
+        description: err instanceof Error ? err.message : 'Could not verify',
+        variant: 'destructive' 
+      });
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -722,14 +859,15 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
                   <Button 
                     onClick={handleSaveEdits}
                     className="flex-1 gap-2"
-                    disabled={saving}
+                    disabled={saving || verifying}
+                    variant="outline"
                   >
                     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    Save Changes
+                    Save Draft
                   </Button>
                   <Button 
                     onClick={() => onAnalyze(face)}
-                    disabled={isAnalyzing || deleting}
+                    disabled={isAnalyzing || deleting || verifying}
                     variant="outline"
                     className="gap-2"
                   >
@@ -740,20 +878,36 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
                     )}
                     {hasAnalysis ? 'Re-Analyze' : 'Analyze'}
                   </Button>
+                </div>
+                
+                {/* Verify & Sync to Hub */}
+                <div className="flex gap-2">
                   {label?.label_status === 'ai_predicted' && (
                     <Button 
                       onClick={confirmPrediction}
-                      disabled={confirming || deleting}
-                      className="gap-2 bg-success hover:bg-success/90"
+                      disabled={confirming || deleting || verifying}
+                      className="flex-1 gap-2 bg-success hover:bg-success/90"
                     >
                       {confirming ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
                         <Check className="w-4 h-4" />
                       )}
-                      Confirm
+                      Confirm AI & Sync
                     </Button>
                   )}
+                  <Button 
+                    onClick={handleVerifyAndSync}
+                    disabled={verifying || deleting || !editFields.confirmed_subtype}
+                    className="flex-1 gap-2 bg-primary hover:bg-primary/90"
+                  >
+                    {verifying ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4" />
+                    )}
+                    Verify & Sync to Hub
+                  </Button>
                 </div>
                 
                 {/* Delete Button */}
