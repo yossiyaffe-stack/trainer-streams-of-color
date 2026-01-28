@@ -30,8 +30,12 @@ import {
   ChevronRight,
   Sparkles,
   Loader2,
-  Trash2
+  Trash2,
+  FolderCheck,
+  FolderOpen,
+  ChevronDown
 } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 
 interface ColorLabel {
@@ -83,6 +87,137 @@ const STATUS_COLORS: Record<string, string> = {
   expert_verified: 'bg-success/10 text-success',
   nechama_verified: 'bg-success/20 text-success',
 };
+
+// Extracted FaceCard component for reuse
+function FaceCard({ 
+  face, 
+  index, 
+  isAnalyzing, 
+  isSelected, 
+  onSelect, 
+  onClick, 
+  onAnalyze,
+  getImageUrl
+}: { 
+  face: FaceImage;
+  index: number;
+  isAnalyzing: boolean;
+  isSelected: boolean;
+  onSelect: (id: string, e: React.MouseEvent) => void;
+  onClick: () => void;
+  onAnalyze: (face: FaceImage) => void;
+  getImageUrl: (face: FaceImage) => string;
+}) {
+  const isUnlabeled = !face.color_label?.label_status || face.color_label.label_status === 'unlabeled';
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: index * 0.02 }}
+      onClick={onClick}
+      className={cn(
+        "group relative aspect-square rounded-lg overflow-hidden border-2 cursor-pointer transition-all",
+        isSelected ? "border-primary ring-2 ring-primary/30" :
+        isAnalyzing ? "border-warning animate-pulse" :
+        "border-border hover:border-primary"
+      )}
+    >
+      <img
+        src={getImageUrl(face)}
+        alt={`Face ${face.source_id || face.id}`}
+        className="w-full h-full object-cover"
+        loading="lazy"
+      />
+
+      {/* Analyzing overlay */}
+      {isAnalyzing && (
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 text-white animate-spin" />
+        </div>
+      )}
+
+      {/* Hover overlay with analyze button */}
+      <div className={cn(
+        "absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent transition-opacity",
+        isAnalyzing ? "opacity-0" : "opacity-0 group-hover:opacity-100"
+      )}>
+        <div className="absolute bottom-0 left-0 right-0 p-2">
+          <p className="text-white text-xs truncate font-medium">
+            {face.color_label?.confirmed_subtype || face.color_label?.ai_predicted_subtype || 'Unlabeled'}
+          </p>
+          {face.color_label?.ai_confidence && (
+            <p className="text-white/70 text-xs">
+              {Math.round(face.color_label.ai_confidence)}% confidence
+            </p>
+          )}
+        </div>
+        
+        {/* Quick analyze button */}
+        {isUnlabeled && (
+          <Button
+            size="sm"
+            variant="secondary"
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 gap-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAnalyze(face);
+            }}
+          >
+            <Sparkles className="w-3 h-3" />
+            Analyze
+          </Button>
+        )}
+      </div>
+
+      {/* Selection checkbox */}
+      <div 
+        className={cn(
+          "absolute top-1 left-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
+          isSelected ? "bg-primary border-primary text-primary-foreground" : "border-white/50 bg-black/30 opacity-0 group-hover:opacity-100"
+        )}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelect(face.id, e);
+        }}
+      >
+        {isSelected && <span className="text-xs">✓</span>}
+      </div>
+
+      {/* Season badge */}
+      {face.color_label?.confirmed_season && (
+        <Badge 
+          className={cn(
+            'absolute top-1 right-1 text-[10px] px-1.5 py-0.5',
+            SEASON_COLORS[face.color_label.confirmed_season] || 'bg-muted'
+          )}
+        >
+          {face.color_label.confirmed_season}
+        </Badge>
+      )}
+
+      {/* Status indicator */}
+      {face.color_label?.label_status && face.color_label.label_status !== 'unlabeled' && (
+        <div className={cn(
+          'absolute bottom-1 left-1 w-2 h-2 rounded-full',
+          face.color_label.label_status === 'nechama_verified' ? 'bg-success' :
+          face.color_label.label_status === 'expert_verified' ? 'bg-success/80' :
+          face.color_label.label_status === 'ai_predicted' ? 'bg-primary' :
+          face.color_label.label_status === 'needs_review' ? 'bg-warning' :
+          'bg-muted-foreground'
+        )} />
+      )}
+
+      {/* Source badge */}
+      <Badge 
+        variant="secondary" 
+        className="absolute bottom-1 right-1 text-[10px] px-1.5 py-0.5 bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        {face.source}
+      </Badge>
+    </motion.div>
+  );
+}
 
 export function FacesGalleryTab() {
   const { toast } = useToast();
@@ -218,6 +353,19 @@ export function FacesGalleryTab() {
 
     return result;
   }, [faces, seasonFilter, statusFilter, confidenceFilter]);
+
+  // Split faces into confirmed and unconfirmed groups
+  const { confirmedFaces, unconfirmedFaces } = useMemo(() => {
+    const confirmed = filteredFaces.filter(f => 
+      f.color_label?.label_status === 'expert_verified' || 
+      f.color_label?.label_status === 'nechama_verified'
+    );
+    const unconfirmed = filteredFaces.filter(f => 
+      f.color_label?.label_status !== 'expert_verified' && 
+      f.color_label?.label_status !== 'nechama_verified'
+    );
+    return { confirmedFaces: confirmed, unconfirmedFaces: unconfirmed };
+  }, [filteredFaces]);
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -461,128 +609,95 @@ export function FacesGalleryTab() {
         </div>
       )}
 
-      {/* Face Grid */}
+      {/* Face Grid - Split into Confirmed and Unconfirmed Folders */}
       {filteredFaces.length > 0 && (
-        <motion.div 
-          className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-        >
-          {filteredFaces.map((face, index) => {
-            const isAnalyzing = analyzingIds.has(face.id);
-            const isSelected = selectedIds.has(face.id);
-            const isUnlabeled = !face.color_label?.label_status || face.color_label.label_status === 'unlabeled';
-            
-            return (
-              <motion.div
-                key={face.id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.02 }}
-                onClick={() => setSelectedFace(face)}
-                className={cn(
-                  "group relative aspect-square rounded-lg overflow-hidden border-2 cursor-pointer transition-all",
-                  isSelected ? "border-primary ring-2 ring-primary/30" :
-                  isAnalyzing ? "border-warning animate-pulse" :
-                  "border-border hover:border-primary"
-                )}
-              >
-                <img
-                  src={getImageUrl(face)}
-                  alt={`Face ${face.source_id || face.id}`}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-
-                {/* Analyzing overlay */}
-                {isAnalyzing && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                    <Loader2 className="w-8 h-8 text-white animate-spin" />
-                  </div>
-                )}
-
-                {/* Hover overlay with analyze button */}
-                <div className={cn(
-                  "absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent transition-opacity",
-                  isAnalyzing ? "opacity-0" : "opacity-0 group-hover:opacity-100"
-                )}>
-                  <div className="absolute bottom-0 left-0 right-0 p-2">
-                    <p className="text-white text-xs truncate font-medium">
-                      {face.color_label?.confirmed_subtype || face.color_label?.ai_predicted_subtype || 'Unlabeled'}
-                    </p>
-                    {face.color_label?.ai_confidence && (
-                      <p className="text-white/70 text-xs">
-                        {Math.round(face.color_label.ai_confidence)}% confidence
-                      </p>
-                    )}
-                  </div>
-                  
-                  {/* Quick analyze button */}
-                  {isUnlabeled && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 gap-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        analyzeFace(face);
-                      }}
-                    >
-                      <Sparkles className="w-3 h-3" />
-                      Analyze
-                    </Button>
-                  )}
-                </div>
-
-                {/* Selection checkbox - Shift+click to select */}
-                <div 
-                  className={cn(
-                    "absolute top-1 left-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
-                    isSelected ? "bg-primary border-primary text-primary-foreground" : "border-white/50 bg-black/30 opacity-0 group-hover:opacity-100"
-                  )}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleSelection(face.id, e);
-                  }}
-                >
-                  {isSelected && <span className="text-xs">✓</span>}
-                </div>
-
-                {/* Season badge */}
-                {face.color_label?.confirmed_season && (
-                  <Badge 
-                    className={cn(
-                      'absolute top-1 right-1 text-[10px] px-1.5 py-0.5',
-                      SEASON_COLORS[face.color_label.confirmed_season] || 'bg-muted'
-                    )}
-                  >
-                    {face.color_label.confirmed_season}
+        <div className="space-y-6">
+          {/* Confirmed Folder */}
+          <Collapsible defaultOpen className="space-y-3">
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="w-full justify-between px-4 py-3 h-auto bg-success/10 hover:bg-success/20 border border-success/30 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <FolderCheck className="w-5 h-5 text-success" />
+                  <span className="font-semibold text-success">Confirmed</span>
+                  <Badge variant="secondary" className="bg-success/20 text-success">
+                    {confirmedFaces.length}
                   </Badge>
-                )}
-
-                {/* Status indicator */}
-                {face.color_label?.label_status && face.color_label.label_status !== 'unlabeled' && (
-                  <div className={cn(
-                    'absolute bottom-1 left-1 w-2 h-2 rounded-full',
-                    face.color_label.label_status === 'nechama_verified' ? 'bg-success' :
-                    face.color_label.label_status === 'expert_verified' ? 'bg-success/80' :
-                    face.color_label.label_status === 'ai_predicted' ? 'bg-primary' :
-                    face.color_label.label_status === 'needs_review' ? 'bg-warning' :
-                    'bg-muted-foreground'
-                  )} />
-                )}
-
-                {/* Source badge */}
-                <Badge 
-                  variant="secondary" 
-                  className="absolute bottom-1 right-1 text-[10px] px-1.5 py-0.5 bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity"
+                </div>
+                <ChevronDown className="w-4 h-4 text-success transition-transform duration-200 group-data-[state=open]:rotate-180" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              {confirmedFaces.length > 0 ? (
+                <motion.div 
+                  className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 pt-2"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
                 >
-                  {face.source}
-                </Badge>
-              </motion.div>
-            );
-          })}
-        </motion.div>
+                  {confirmedFaces.map((face, index) => (
+                    <FaceCard
+                      key={face.id}
+                      face={face}
+                      index={index}
+                      isAnalyzing={analyzingIds.has(face.id)}
+                      isSelected={selectedIds.has(face.id)}
+                      onSelect={toggleSelection}
+                      onClick={() => setSelectedFace(face)}
+                      onAnalyze={analyzeFace}
+                      getImageUrl={getImageUrl}
+                    />
+                  ))}
+                </motion.div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground text-sm border border-dashed rounded-lg">
+                  No confirmed faces yet. Verify predictions to add them here.
+                </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+
+          {/* Unconfirmed Folder */}
+          <Collapsible defaultOpen className="space-y-3">
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="w-full justify-between px-4 py-3 h-auto bg-muted/50 hover:bg-muted border border-border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <FolderOpen className="w-5 h-5 text-muted-foreground" />
+                  <span className="font-semibold">Unconfirmed</span>
+                  <Badge variant="secondary">
+                    {unconfirmedFaces.length}
+                  </Badge>
+                </div>
+                <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              {unconfirmedFaces.length > 0 ? (
+                <motion.div 
+                  className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 pt-2"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                >
+                  {unconfirmedFaces.map((face, index) => (
+                    <FaceCard
+                      key={face.id}
+                      face={face}
+                      index={index}
+                      isAnalyzing={analyzingIds.has(face.id)}
+                      isSelected={selectedIds.has(face.id)}
+                      onSelect={toggleSelection}
+                      onClick={() => setSelectedFace(face)}
+                      onAnalyze={analyzeFace}
+                      getImageUrl={getImageUrl}
+                    />
+                  ))}
+                </motion.div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground text-sm border border-dashed rounded-lg">
+                  All faces have been confirmed!
+                </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
       )}
 
       {/* No results for filters */}
