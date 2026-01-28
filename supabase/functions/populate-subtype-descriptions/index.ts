@@ -390,62 +390,69 @@ serve(async (req) => {
       const dataToUse = SUBTYPE_DATA[subtype.slug] || SUBTYPE_DATA[subtype.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')];
       if (!dataToUse) continue;
 
-      // Build update object - only update fields that have data
+      // Build update object - ALWAYS update fields from local data (overwrite existing)
       const updateData: Record<string, unknown> = {};
       let hasUpdates = false;
 
-      // Description from beautyStatement
-      if (dataToUse.beautyStatement && (!subtype.description || subtype.description.trim() === '')) {
-        updateData.description = dataToUse.beautyStatement;
-        hasUpdates = true;
+      // Description from beautyStatement, or generate from paletteEffects
+      if (!subtype.description || subtype.description.trim() === '') {
+        if (dataToUse.beautyStatement) {
+          updateData.description = dataToUse.beautyStatement;
+          hasUpdates = true;
+        } else if (dataToUse.paletteEffects?.length) {
+          // Generate description from palette effects
+          const effectsList = dataToUse.paletteEffects.slice(0, 3).join(', ');
+          updateData.description = `A ${subtype.name} palette with effects of ${effectsList}. ${dataToUse.paletteEffects.length > 3 ? `Also includes ${dataToUse.paletteEffects.slice(3).join(', ')}.` : ''}`.trim();
+          hasUpdates = true;
+        }
       }
 
-      // Palette effect from first paletteEffects
-      if (dataToUse.paletteEffects?.length && (!subtype.palette_effect || subtype.palette_effect.trim() === '')) {
+      // Palette effect from first paletteEffects - always update if we have data
+      if (dataToUse.paletteEffects?.length) {
         updateData.palette_effect = dataToUse.paletteEffects[0];
         hasUpdates = true;
       }
 
-      // Fabrics
-      if (dataToUse.fabrics?.length && (!subtype.fabrics_perfect || subtype.fabrics_perfect.length === 0)) {
+      // Fabrics - always update
+      if (dataToUse.fabrics?.length) {
         updateData.fabrics_perfect = dataToUse.fabrics;
         hasUpdates = true;
       }
 
-      // Prints
-      if (dataToUse.prints?.length && (!subtype.prints || subtype.prints.length === 0)) {
+      // Prints - always update
+      if (dataToUse.prints?.length) {
         updateData.prints = dataToUse.prints;
         hasUpdates = true;
       }
 
-      // Eras
-      if (dataToUse.eras?.length && (!subtype.eras || subtype.eras.length === 0)) {
+      // Eras - always update
+      if (dataToUse.eras?.length) {
         updateData.eras = dataToUse.eras;
         hasUpdates = true;
       }
 
-      // Artists
-      if (dataToUse.artists?.length && (!subtype.artists || subtype.artists.length === 0)) {
+      // Artists - always update
+      if (dataToUse.artists?.length) {
         updateData.artists = dataToUse.artists;
         hasUpdates = true;
       }
 
-      // Designers
-      if (dataToUse.designers?.length && (!subtype.designers || subtype.designers.length === 0)) {
+      // Designers - always update
+      if (dataToUse.designers?.length) {
         updateData.designers = dataToUse.designers;
         hasUpdates = true;
       }
 
-      // Jewelry
-      if (dataToUse.jewelryMetals?.length && (!subtype.jewelry_metals || subtype.jewelry_metals.length === 0)) {
+      // Jewelry - always update
+      if (dataToUse.jewelryMetals?.length) {
         updateData.jewelry_metals = dataToUse.jewelryMetals;
         hasUpdates = true;
       }
-      if (dataToUse.jewelryStones?.length && (!subtype.jewelry_stones || subtype.jewelry_stones.length === 0)) {
+      if (dataToUse.jewelryStones?.length) {
         updateData.jewelry_stones = dataToUse.jewelryStones;
         hasUpdates = true;
       }
-      if (dataToUse.jewelryStyles?.length && (!subtype.jewelry_styles || subtype.jewelry_styles.length === 0)) {
+      if (dataToUse.jewelryStyles?.length) {
         updateData.jewelry_styles = dataToUse.jewelryStyles;
         hasUpdates = true;
       }
