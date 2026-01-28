@@ -657,15 +657,19 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
                     <SelectTrigger className="w-full bg-background">
                       <SelectValue placeholder="Select Nechama's subtype..." />
                     </SelectTrigger>
-                    <SelectContent className="bg-popover z-[100]">
+                    <SelectContent className="bg-popover border border-border shadow-lg z-[200] max-h-80">
                       {['spring', 'summer', 'autumn', 'winter'].map(season => (
                         subtypesBySeason[season]?.length > 0 && (
                           <SelectGroup key={season}>
-                            <SelectLabel className="flex items-center gap-2 text-xs uppercase tracking-wide">
-                              {SEASON_EMOJIS[season]} {season.charAt(0).toUpperCase() + season.slice(1)}
+                            <SelectLabel className="flex items-center gap-2 text-xs uppercase tracking-wide font-semibold py-2 px-3 bg-muted/50">
+                              {SEASON_EMOJIS[season]} {season.charAt(0).toUpperCase() + season.slice(1)} ({subtypesBySeason[season].length})
                             </SelectLabel>
                             {subtypesBySeason[season].map(subtype => (
-                              <SelectItem key={subtype.id} value={subtype.id}>
+                              <SelectItem 
+                                key={subtype.id} 
+                                value={subtype.id}
+                                className="pl-6"
+                              >
                                 {subtype.name}
                               </SelectItem>
                             ))}
