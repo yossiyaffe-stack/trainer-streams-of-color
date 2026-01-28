@@ -183,6 +183,9 @@ export function SubtypeManager() {
   // 3-Tier Filter State
   const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
   const [selectedTimePeriod, setSelectedTimePeriod] = useState<string | null>(null);
+  
+  // Hub sync hook - must be called unconditionally at top level
+  const { syncFromHub, isSyncing } = useHubSync();
 
   useEffect(() => {
     fetchSubtypes();
@@ -366,6 +369,13 @@ export function SubtypeManager() {
     };
   };
 
+  const handleSync = async (type: SyncType = 'all') => {
+    const result = await syncFromHub(type);
+    if (result.success) {
+      fetchSubtypes();
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -373,15 +383,6 @@ export function SubtypeManager() {
       </div>
     );
   }
-
-  const { syncFromHub, isSyncing } = useHubSync();
-
-  const handleSync = async (type: SyncType = 'all') => {
-    const result = await syncFromHub(type);
-    if (result.success) {
-      fetchSubtypes(); // Refresh the list after sync
-    }
-  };
 
   return (
     <div className="space-y-6">
