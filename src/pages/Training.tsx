@@ -11,7 +11,7 @@ import { ProgressDashboard } from '@/components/training/ProgressDashboard';
 import { BatchReanalysis } from '@/components/training/BatchReanalysis';
 import { SubtypeManager } from '@/components/training/SubtypeManager';
 import { FacesUploadTab } from '@/components/training/FacesUploadTab';
-import { BulkSubtypeImport } from '@/components/admin/BulkSubtypeImport';
+import { HubSubtypeSync } from '@/components/admin/HubSubtypeSync';
 
 import { FacesGalleryTab } from '@/components/training/FacesGalleryTab';
 import { SAMPLE_SUBTYPES } from '@/data/subtypes';
@@ -283,8 +283,8 @@ export default function Training() {
 
             {/* Manage Subtypes Tab */}
             <TabsContent value="subtypes" className="space-y-6">
+              <HubSubtypeSync />
               <SubtypeManager />
-              <BulkSubtypeImport />
             </TabsContent>
 
             {/* Grid View Tab */}
