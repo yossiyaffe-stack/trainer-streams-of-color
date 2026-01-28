@@ -113,12 +113,23 @@ function extractSubtypes(payload: unknown): HubSubtype[] | null {
   return null;
 }
 
-function normalizeSeason(season: unknown): 'spring' | 'summer' | 'autumn' | 'winter' {
+function normalizeSeason(season: unknown, subtypeName?: string): 'spring' | 'summer' | 'autumn' | 'winter' {
   const s = typeof season === 'string' ? season.trim().toLowerCase() : '';
   if (s.includes('spring')) return 'spring';
   if (s.includes('summer')) return 'summer';
   if (s.includes('autumn') || s.includes('fall')) return 'autumn';
-  return 'winter';
+  if (s.includes('winter')) return 'winter';
+  
+  // If season field doesn't contain a valid season, try to infer from subtype name
+  if (subtypeName) {
+    const name = subtypeName.toLowerCase();
+    if (name.includes('spring')) return 'spring';
+    if (name.includes('summer')) return 'summer';
+    if (name.includes('autumn') || name.includes('fall')) return 'autumn';
+    if (name.includes('winter')) return 'winter';
+  }
+  
+  return 'winter'; // default fallback
 }
 
 function describePayload(payload: unknown): string {
@@ -207,7 +218,7 @@ serve(async (req) => {
             const localSubtype: Record<string, unknown> = {
               name: hubSubtype.name,
               slug: hubSubtype.slug,
-              season: normalizeSeason(hubSubtype.season),
+              season: normalizeSeason(hubSubtype.season, hubSubtype.name),
               palette_effect: hubSubtype.palette_effect ?? undefined,
               time_period: hubSubtype.time_period ?? undefined,
               is_active: true,
