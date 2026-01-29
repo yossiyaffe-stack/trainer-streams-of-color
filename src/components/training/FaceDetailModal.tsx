@@ -37,6 +37,7 @@ interface SubtypeOption {
   name: string;
   season: string;
   slug: string;
+  time_period?: string | null;
 }
 
 interface ColorLabel {
@@ -121,6 +122,7 @@ interface EditableFields {
   contrast_level: string;
   depth: string;
   confirmed_season: string;
+  confirmed_time_period: string;
   confirmed_subtype: string;
   disagreement_notes: string;
   notes: string;
@@ -140,7 +142,7 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
     async function fetchSubtypes() {
       const { data } = await supabase
         .from('subtypes')
-        .select('id, name, season, slug')
+        .select('id, name, season, slug, time_period')
         .eq('is_active', true)
         .order('season')
         .order('display_order');
@@ -161,6 +163,7 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
     contrast_level: label?.contrast_level || '',
     depth: label?.depth || '',
     confirmed_season: label?.confirmed_season || '',
+    confirmed_time_period: '',
     confirmed_subtype: label?.confirmed_subtype || '',
     disagreement_notes: label?.disagreement_notes || '',
     notes: label?.notes || '',
@@ -178,10 +181,24 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
     ) || null;
   }, [label?.ai_predicted_subtype, subtypes]);
 
-  // Filter subtypes by selected season
-  const filteredSubtypes = editFields.confirmed_season 
-    ? subtypes.filter(s => s.season.toLowerCase() === editFields.confirmed_season.toLowerCase())
-    : subtypes;
+  // Filter subtypes by selected season and time period
+  const filteredSubtypes = useMemo(() => {
+    let filtered = subtypes;
+    
+    // Filter by season first
+    if (editFields.confirmed_season) {
+      filtered = filtered.filter(s => s.season.toLowerCase() === editFields.confirmed_season.toLowerCase());
+    }
+    
+    // Then filter by time period if selected
+    if (editFields.confirmed_time_period) {
+      filtered = filtered.filter(s => 
+        (s as any).time_period?.toLowerCase() === editFields.confirmed_time_period.toLowerCase()
+      );
+    }
+    
+    return filtered;
+  }, [subtypes, editFields.confirmed_season, editFields.confirmed_time_period]);
 
   const handleFieldChange = (field: keyof EditableFields, value: string) => {
     setEditFields(prev => ({ ...prev, [field]: value }));
@@ -554,13 +571,21 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
 
             {/* Always Editable Fields */}
             <div className="space-y-5">
-              {/* Season & Subtype */}
-              <div className="grid grid-cols-2 gap-4">
+              {/* 3-Tier Classification: Season → Time Period → Subtype */}
+              <div className="space-y-4">
+                {/* Row 1: Season */}
                 <div className="space-y-2">
                   <Label>Season</Label>
                   <Select 
                     value={editFields.confirmed_season} 
-                    onValueChange={(v) => handleFieldChange('confirmed_season', v)}
+                    onValueChange={(v) => {
+                      setEditFields(prev => ({
+                        ...prev,
+                        confirmed_season: v,
+                        confirmed_time_period: '', // Reset time period when season changes
+                        confirmed_subtype: '', // Reset subtype when season changes
+                      }));
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select season" />
@@ -574,18 +599,51 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Row 2: Time Period (Early/Mid/Late) */}
+                {editFields.confirmed_season && (
+                  <div className="space-y-2">
+                    <Label>Time Period</Label>
+                    <div className="flex gap-2">
+                      {['early', 'mid', 'late'].map(period => (
+                        <Button
+                          key={period}
+                          type="button"
+                          variant={editFields.confirmed_time_period === period ? 'default' : 'outline'}
+                          size="sm"
+                          className="flex-1 capitalize"
+                          onClick={() => {
+                            setEditFields(prev => ({
+                              ...prev,
+                              confirmed_time_period: prev.confirmed_time_period === period ? '' : period,
+                              confirmed_subtype: '', // Reset subtype when period changes
+                            }));
+                          }}
+                        >
+                          {period}
+                        </Button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Optional: Select a time period to narrow down subtypes
+                    </p>
+                  </div>
+                )}
+
+                {/* Row 3: Specific Subtype */}
                 <div className="space-y-2">
                   <Label>Subtype (Nechama's Names)</Label>
                   <Select 
                     value={editFields.confirmed_subtype} 
                     onValueChange={(v) => {
-                      // Find the subtype to also update season automatically
+                      // Find the subtype to also update season and time period automatically
                       const selectedSubtype = subtypes.find(s => s.name === v);
                       if (selectedSubtype) {
                         setEditFields(prev => ({
                           ...prev,
                           confirmed_subtype: v,
                           confirmed_season: selectedSubtype.season.toLowerCase(),
+                          confirmed_time_period: selectedSubtype.time_period?.toLowerCase() || '',
                         }));
                       } else {
                         handleFieldChange('confirmed_subtype', v);
@@ -595,10 +653,15 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
                     <SelectTrigger>
                       <SelectValue placeholder="Select subtype" />
                     </SelectTrigger>
-                    <SelectContent className="bg-popover">
+                    <SelectContent className="bg-popover max-h-60">
                       {filteredSubtypes.length > 0 ? (
                         filteredSubtypes.map(subtype => (
                           <SelectItem key={subtype.id} value={subtype.name}>
+                            {subtype.time_period && (
+                              <span className="text-muted-foreground text-xs mr-1 capitalize">
+                                ({subtype.time_period})
+                              </span>
+                            )}
                             {subtype.name}
                           </SelectItem>
                         ))
