@@ -6,6 +6,31 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Scoring weights - can be made database-configurable in future
+const SCORING_WEIGHTS = {
+  // Layer 1: Season Detection
+  season: {
+    undertone: 30,
+    contrast: { min: 10, max: 25 }, // Variable based on match quality
+    clarity: 15,
+    depth: 10,
+  },
+  // Layer 2: Subtype Matching
+  subtype: {
+    skin: 25,
+    eyes: 25,
+    hair: 20,
+    contrast: 15,
+    seasonBonus: 0.5,
+  },
+  // Layer 0: Quiz (on-device)
+  quiz: {
+    vein: 2,
+    jewelry: 2,
+    white: 2,
+  },
+};
+
 // Build the analysis prompt with methodology context
 function buildAnalysisPrompt(subtypes: any[]): string {
   // Format subtypes for the AI to reference
@@ -20,37 +45,30 @@ function buildAnalysisPrompt(subtypes: any[]): string {
 
   return `You are a professional color analyst using the Nechama Yaffe methodology for seasonal color analysis.
 
-## SCORING ALGORITHM
+## SCORING WEIGHTS (from nechamaAlgorithm.ts)
 
-You must classify faces using this WEIGHTED SCORING FORMULA:
-
-Score = (skinMatch × 25) + (eyeMatch × 25) + (hairMatch × 20) + (contrastMatch × 15) + (seasonBaseScore × 0.5)
-
-Where:
-- skinMatch (0-1): How well skin tone/undertone matches the subtype's typical indicators
-- eyeMatch (0-1): How well eye color matches the subtype's eye color patterns
-- hairMatch (0-1): How well hair color/depth matches the subtype's hair indicators
-- contrastMatch (0-1): How well contrast level aligns (low=Summer, high=Winter, medium=Spring/Autumn)
-- seasonBaseScore: Points from Layer 1 season detection
-
-## LAYER 1: SEASON DETECTION
-
-Determine the primary season by evaluating:
-1. UNDERTONE: Warm (Spring/Autumn) vs Cool (Summer/Winter)
-2. CONTRAST: High (Winter) vs Low (Summer) — skin-to-hair luminosity difference
-3. CLARITY: Clear (Spring/Winter) vs Muted (Summer/Autumn)
-4. DEPTH: Light skin + light hair = Spring; Deep = Autumn/Winter
+### LAYER 1: SEASON DETECTION (max ~80 points)
+Score each season using these EXACT weights:
+- Undertone match: ${SCORING_WEIGHTS.season.undertone} points (Warm → Spring/Autumn, Cool → Summer/Winter)
+- Contrast match: ${SCORING_WEIGHTS.season.contrast.min}-${SCORING_WEIGHTS.season.contrast.max} points (High → Winter, Low → Summer)
+- Clarity match: ${SCORING_WEIGHTS.season.clarity} points (Clear → Spring/Winter, Muted → Summer/Autumn)
+- Depth match: ${SCORING_WEIGHTS.season.depth} points (Light → Spring/Summer, Deep → Autumn/Winter)
 
 Season indicators:
-- SPRING: Warm undertone, light-medium depth, clear/bright coloring, medium contrast
-- SUMMER: Cool undertone, light-medium depth, muted/soft coloring, low contrast
-- AUTUMN: Warm undertone, medium-deep depth, muted/rich coloring, medium contrast
-- WINTER: Cool undertone, any depth, clear/vivid coloring, high contrast
+- SPRING: Warm undertone (+30), medium contrast (+15), clear clarity (+15), light-medium depth (+5)
+- SUMMER: Cool undertone (+30), low contrast (+25), muted clarity (+15), light-medium depth (+5)
+- AUTUMN: Warm undertone (+30), medium contrast (+15), muted clarity (+15), medium-deep depth (+10)
+- WINTER: Cool undertone (+30), high contrast (+25), clear clarity (+15), any depth (+5)
 
-## LAYER 2: SUBTYPE MATCHING
+### LAYER 2: SUBTYPE MATCHING (max ~85 points + bonus)
+After determining the top 2 seasons, score each subtype using:
 
-After determining likely seasons, score each subtype using the formula above.
-Here are the available subtypes to match against:
+SubtypeScore = (skinMatch × ${SCORING_WEIGHTS.subtype.skin}) + (eyeMatch × ${SCORING_WEIGHTS.subtype.eyes}) + (hairMatch × ${SCORING_WEIGHTS.subtype.hair}) + (contrastMatch × ${SCORING_WEIGHTS.subtype.contrast}) + (seasonBaseScore × ${SCORING_WEIGHTS.subtype.seasonBonus})
+
+Where each match factor is 0.0 to 1.0 based on how well the extracted feature matches the subtype's known indicators.
+
+## SUBTYPE INDICATORS (from database)
+Match extracted features against these descriptors:
 
 ${JSON.stringify(subtypeIndicators, null, 2)}
 
