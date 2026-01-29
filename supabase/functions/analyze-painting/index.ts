@@ -1,9 +1,33 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+// Authentication helper - validates JWT and returns user
+async function authenticateRequest(req: Request): Promise<{ user: { id: string; email?: string } } | null> {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return null;
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+  const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader } }
+  });
+
+  const token = authHeader.replace('Bearer ', '');
+  const { data, error } = await supabaseClient.auth.getUser(token);
+  
+  if (error || !data?.user) {
+    return null;
+  }
+
+  return { user: { id: data.user.id, email: data.user.email } };
+}
 
 type AnalysisOption = 
   | 'color_palette' 
@@ -185,6 +209,16 @@ serve(async (req) => {
   }
 
   try {
+    // Authenticate request - this function uses paid AI services
+    const auth = await authenticateRequest(req);
+    if (!auth) {
+      return new Response(
+        JSON.stringify({ error: "Authentication required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    console.log(`Authenticated user: ${auth.user.email || auth.user.id}`);
+
     const { imageBase64, imageUrl, analysisOptions } = await req.json();
     
     if (!imageBase64 && !imageUrl) {
