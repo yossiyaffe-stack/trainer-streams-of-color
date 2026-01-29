@@ -6,9 +6,59 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const FACE_ANALYSIS_PROMPT = `You are analyzing a face photo for seasonal color analysis based on the 12-season (or more detailed subtype) color system.
+// Build the analysis prompt with methodology context
+function buildAnalysisPrompt(subtypes: any[]): string {
+  // Format subtypes for the AI to reference
+  const subtypeIndicators = subtypes.map(s => ({
+    slug: s.slug,
+    name: s.name,
+    season: s.season,
+    description: s.description?.substring(0, 200) || '',
+    key_colors: s.key_colors?.slice(0, 5) || [],
+    palette_effect: s.palette_effect || '',
+  }));
 
-Analyze the person's natural coloring - their skin tone, eye color, hair color, and overall contrast level. Based on these features, determine their most likely seasonal color type.
+  return `You are a professional color analyst using the Nechama Yaffe methodology for seasonal color analysis.
+
+## SCORING ALGORITHM
+
+You must classify faces using this WEIGHTED SCORING FORMULA:
+
+Score = (skinMatch × 25) + (eyeMatch × 25) + (hairMatch × 20) + (contrastMatch × 15) + (seasonBaseScore × 0.5)
+
+Where:
+- skinMatch (0-1): How well skin tone/undertone matches the subtype's typical indicators
+- eyeMatch (0-1): How well eye color matches the subtype's eye color patterns
+- hairMatch (0-1): How well hair color/depth matches the subtype's hair indicators
+- contrastMatch (0-1): How well contrast level aligns (low=Summer, high=Winter, medium=Spring/Autumn)
+- seasonBaseScore: Points from Layer 1 season detection
+
+## LAYER 1: SEASON DETECTION
+
+Determine the primary season by evaluating:
+1. UNDERTONE: Warm (Spring/Autumn) vs Cool (Summer/Winter)
+2. CONTRAST: High (Winter) vs Low (Summer) — skin-to-hair luminosity difference
+3. CLARITY: Clear (Spring/Winter) vs Muted (Summer/Autumn)
+4. DEPTH: Light skin + light hair = Spring; Deep = Autumn/Winter
+
+Season indicators:
+- SPRING: Warm undertone, light-medium depth, clear/bright coloring, medium contrast
+- SUMMER: Cool undertone, light-medium depth, muted/soft coloring, low contrast
+- AUTUMN: Warm undertone, medium-deep depth, muted/rich coloring, medium contrast
+- WINTER: Cool undertone, any depth, clear/vivid coloring, high contrast
+
+## LAYER 2: SUBTYPE MATCHING
+
+After determining likely seasons, score each subtype using the formula above.
+Here are the available subtypes to match against:
+
+${JSON.stringify(subtypeIndicators, null, 2)}
+
+## ANALYSIS REQUIREMENTS
+
+Analyze the person's NATURAL coloring - their skin tone, eye color, hair color, and overall contrast level.
+IGNORE: Clothing colors, makeup, lighting artifacts, accessories.
+FOCUS ON: Natural skin undertone, eye color at the iris, natural hair color (note if dyed).
 
 Respond with JSON in this exact format:
 
@@ -16,24 +66,25 @@ Respond with JSON in this exact format:
   "skin": {
     "tone_name": "One of: porcelain, ivory, alabaster, fair, peaches_cream, cream, light_beige, rose_beige, warm_beige, golden_beige, nude, sand, honey, caramel, olive, tan, bronze, amber, cinnamon, toffee, mocha, espresso, mahogany, cocoa, ebony, onyx",
     "hex": "#hexvalue of dominant skin color",
-    "undertone": "warm, cool, or neutral"
+    "undertone": "warm, cool, or neutral",
+    "undertone_confidence": 0-100
   },
   
   "eyes": {
     "color_name": "One of: dark_brown, chocolate_brown, golden_brown, amber, topaz, honey, emerald, jade, olive, sage, moss, teal, sapphire, sky_blue, steel_blue, periwinkle, navy, charcoal, silver, slate, pewter, hazel_green, hazel_brown, hazel_gold, black, violet, mixed",
     "hex": "#hexvalue of dominant eye color",
-    "details": "Brief description of eye color patterns, flecks, etc."
+    "details": "Brief description of eye color patterns, flecks, clarity"
   },
   
   "hair": {
     "color_name": "One of: blue_black, soft_black, black_brown, espresso, dark_chocolate, milk_chocolate, chestnut, walnut, caramel, toffee, golden_brown, mousy_brown, auburn, copper, ginger, strawberry, burgundy, mahogany, platinum, ash_blonde, golden_blonde, honey_blonde, champagne, dirty_blonde, dark_blonde, silver, pewter, salt_pepper, white, steel_gray",
     "hex": "#hexvalue of dominant hair color",
-    "is_natural": true or false (best guess)
+    "is_natural": true or false (best guess based on roots, consistency)
   },
   
   "contrast": {
     "level": "low, low-medium, medium, medium-high, or high",
-    "value": 0-100 numeric value,
+    "value": 0-100 numeric value representing skin-to-hair luminosity difference,
     "details": "Description of contrast between features"
   },
   
@@ -42,23 +93,44 @@ Respond with JSON in this exact format:
     "value": 0-100 numeric value
   },
   
+  "clarity": {
+    "level": "muted, soft, medium, clear, or vivid",
+    "value": 0-100 numeric value
+  },
+  
+  "scoring": {
+    "skin_match": 0-1 score,
+    "eye_match": 0-1 score,
+    "hair_match": 0-1 score,
+    "contrast_match": 0-1 score,
+    "season_base": 0-100,
+    "total_score": calculated total using the formula
+  },
+  
   "predicted_season": "spring, summer, autumn, or winter",
   
-  "predicted_subtype": "A specific subtype name like 'Light Spring', 'Soft Summer', 'Deep Autumn', 'Clear Winter', etc.",
+  "predicted_subtype": "The slug of the best matching subtype from the provided list",
   
   "confidence": 0-100 how confident you are in this assessment,
   
   "alternatives": [
     {
-      "subtype": "Second most likely subtype",
-      "confidence": 0-100
+      "subtype": "Second most likely subtype slug",
+      "confidence": 0-100,
+      "score": total score for this alternative
+    },
+    {
+      "subtype": "Third most likely subtype slug", 
+      "confidence": 0-100,
+      "score": total score for this alternative
     }
   ],
   
-  "reasoning": "2-3 sentences explaining why you chose this season/subtype based on the visual evidence"
+  "reasoning": "2-3 sentences explaining your scoring decision, mentioning specific feature matches that drove the classification"
 }
 
-Be precise with hex color values. Consider undertone, depth, and contrast together. If the photo quality is poor or the person appears to be wearing heavy makeup, note that in your reasoning and lower your confidence accordingly.`;
+Be precise with hex color values. If the photo quality is poor or the person appears to be wearing heavy makeup, note that in your reasoning and lower your confidence accordingly. Always show your scoring work in the "scoring" object.`;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -80,7 +152,25 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
     console.log(`Analyzing face image: ${faceImageId}`);
+
+    // Fetch subtypes from database for methodology context
+    const { data: subtypes, error: subtypesError } = await supabase
+      .from('subtypes')
+      .select('slug, name, season, description, key_colors, palette_effect, time_period')
+      .eq('is_active', true)
+      .order('season')
+      .order('display_order');
+
+    if (subtypesError) {
+      console.error("Failed to fetch subtypes:", subtypesError);
+    }
+
+    const analysisPrompt = buildAnalysisPrompt(subtypes || []);
 
     // Fetch the image and convert to base64 (HuggingFace URLs are signed and expire)
     let imageBase64: string;
@@ -138,12 +228,12 @@ serve(async (req) => {
             {
               role: "user",
               content: [
-                { type: "text", text: FACE_ANALYSIS_PROMPT },
+                { type: "text", text: analysisPrompt },
                 { type: "image_url", image_url: { url: imageBase64 } }
               ]
             }
           ],
-          max_tokens: 2000,
+          max_tokens: 3000,
         }),
       });
 
@@ -172,11 +262,6 @@ serve(async (req) => {
           );
         }
 
-        // Update the color_labels table with the analysis
-        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-        const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
         // Normalize enum values - AI sometimes returns underscores instead of hyphens
         const normalizeEnumValue = (value: string | undefined): string | undefined => {
           if (!value) return undefined;
@@ -195,6 +280,7 @@ serve(async (req) => {
           skin_hex: analysis.skin?.hex,
           skin_tone_name: analysis.skin?.tone_name,
           undertone: analysis.skin?.undertone,
+          undertone_confidence: analysis.skin?.undertone_confidence,
           eye_hex: analysis.eyes?.hex,
           eye_color_name: analysis.eyes?.color_name,
           eye_details: analysis.eyes?.details ? { description: analysis.eyes.details } : null,
@@ -203,7 +289,11 @@ serve(async (req) => {
           hair_details: analysis.hair?.is_natural !== undefined ? { is_natural: analysis.hair.is_natural } : null,
           contrast_level: validContrastLevels.includes(normalizedContrastLevel || '') ? normalizedContrastLevel : null,
           contrast_value: analysis.contrast?.value,
-          contrast_details: analysis.contrast?.details ? { description: analysis.contrast.details } : null,
+          contrast_details: analysis.contrast?.details ? { 
+            description: analysis.contrast.details,
+            clarity_level: analysis.clarity?.level,
+            clarity_value: analysis.clarity?.value,
+          } : null,
           depth: validDepthLevels.includes(normalizedDepth || '') ? normalizedDepth : null,
           depth_value: analysis.depth?.value,
           ai_predicted_subtype: analysis.predicted_subtype,
@@ -227,10 +317,16 @@ serve(async (req) => {
           console.error("Failed to save analysis:", upsertError);
         }
 
+        // Log scoring details for training refinement
+        if (analysis.scoring) {
+          console.log(`Scoring breakdown for ${faceImageId}:`, JSON.stringify(analysis.scoring));
+        }
+
         return new Response(
           JSON.stringify({ 
             success: true,
             analysis,
+            scoring: analysis.scoring,
             saved: !upsertError
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
