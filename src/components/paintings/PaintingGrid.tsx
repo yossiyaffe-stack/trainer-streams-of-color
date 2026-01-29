@@ -158,6 +158,11 @@ export function PaintingGrid() {
                 loading="lazy"
               />
               
+              {/* Index Number Badge */}
+              <div className="absolute top-1 left-1 min-w-[1.5rem] h-6 px-1.5 rounded bg-black/70 text-white text-xs font-mono font-bold flex items-center justify-center">
+                {index + 1}
+              </div>
+              
               {/* Hover Overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                 <div className="absolute bottom-0 left-0 right-0 p-2">

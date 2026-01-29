@@ -296,7 +296,7 @@ export function PhotoGridView({ photos, onUpdatePhoto, onBatchAction }: PhotoGri
                   <Badge variant="secondary" className="ml-2">{seasonPhotos.length}</Badge>
                 </h3>
                 <div className={cn('grid gap-2', getGridClasses())}>
-                  {seasonPhotos.map(photo => (
+                  {seasonPhotos.map((photo, idx) => (
                     <PhotoThumbnail
                       key={photo.id}
                       photo={photo}
@@ -305,6 +305,7 @@ export function PhotoGridView({ photos, onUpdatePhoto, onBatchAction }: PhotoGri
                       onSelect={(e) => toggleSelect(photo.id, e)}
                       onClick={() => setExpandedId(photo.id)}
                       showLabel={viewMode === 'large'}
+                      index={idx + 1}
                     />
                   ))}
                 </div>
@@ -314,7 +315,7 @@ export function PhotoGridView({ photos, onUpdatePhoto, onBatchAction }: PhotoGri
         </div>
       ) : (
         <div className={cn('grid gap-2', getGridClasses())}>
-          {filteredPhotos.map(photo => (
+          {filteredPhotos.map((photo, idx) => (
             <PhotoThumbnail
               key={photo.id}
               photo={photo}
@@ -323,6 +324,7 @@ export function PhotoGridView({ photos, onUpdatePhoto, onBatchAction }: PhotoGri
               onSelect={(e) => toggleSelect(photo.id, e)}
               onClick={() => setExpandedId(photo.id)}
               showLabel={viewMode === 'large'}
+              index={idx + 1}
             />
           ))}
         </div>
@@ -364,7 +366,8 @@ function PhotoThumbnail({
   isSelected, 
   onSelect, 
   onClick, 
-  showLabel 
+  showLabel,
+  index
 }: {
   photo: BulkPhoto;
   sizeClass: string;
@@ -372,6 +375,7 @@ function PhotoThumbnail({
   onSelect: (e?: React.MouseEvent) => void;
   onClick: () => void;
   showLabel: boolean;
+  index: number;
 }) {
   const getStatusIndicator = () => {
     switch (photo.status) {
@@ -408,10 +412,15 @@ function PhotoThumbnail({
       )}
       onClick={onClick}
     >
+      {/* Index Number Badge */}
+      <div className="absolute top-1 left-1 min-w-[1.5rem] h-6 px-1.5 rounded bg-black/70 text-white text-xs font-mono font-bold flex items-center justify-center z-10">
+        {index}
+      </div>
+
       {/* Selection checkbox */}
       <div
         className={cn(
-          'absolute top-1 left-1 w-5 h-5 rounded border-2 z-10',
+          'absolute top-1 left-8 w-5 h-5 rounded border-2 z-10',
           'flex items-center justify-center cursor-pointer transition-opacity',
           isSelected 
             ? 'bg-primary border-primary text-primary-foreground' 
