@@ -11,6 +11,7 @@ import { ProgressDashboard } from '@/components/training/ProgressDashboard';
 import { BatchReanalysis } from '@/components/training/BatchReanalysis';
 
 import { FacesUploadTab } from '@/components/training/FacesUploadTab';
+import { ConfirmedGalleryTab } from '@/components/training/ConfirmedGalleryTab';
 
 
 import { FacesGalleryTab } from '@/components/training/FacesGalleryTab';
@@ -29,9 +30,9 @@ import {
   Table2,
   LayoutGrid,
   FlaskConical,
-  
   Images,
-  Upload
+  Upload,
+  CheckCircle2
 } from 'lucide-react';
 
 export default function Training() {
@@ -169,6 +170,10 @@ export default function Training() {
                 <Images className="w-4 h-4" />
                 Gallery
               </TabsTrigger>
+              <TabsTrigger value="confirmed" className="gap-2 data-[state=active]:bg-background">
+                <CheckCircle2 className="w-4 h-4" />
+                Confirmed
+              </TabsTrigger>
               <TabsTrigger value="analyze" className="gap-2 data-[state=active]:bg-background">
                 <Camera className="w-4 h-4" />
                 Analyze
@@ -199,6 +204,11 @@ export default function Training() {
             {/* Gallery Tab with Filters */}
             <TabsContent value="gallery" className="space-y-6">
               <FacesGalleryTab />
+            </TabsContent>
+
+            {/* Confirmed Tab */}
+            <TabsContent value="confirmed" className="space-y-6">
+              <ConfirmedGalleryTab />
             </TabsContent>
 
             {/* Analyze Photo Tab */}
