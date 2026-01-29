@@ -64,6 +64,9 @@ export function ConfirmedGalleryTab() {
     },
   });
 
+  // Proper season order
+  const SEASON_ORDER = ['spring', 'summer', 'autumn', 'winter'];
+
   // Group by season and subtype
   const groupedFaces = useMemo(() => {
     const groups: Record<string, Record<string, ConfirmedFace[]>> = {};
@@ -75,7 +78,7 @@ export function ConfirmedGalleryTab() {
         face.confirmed_season?.toLowerCase().includes(searchTerm.toLowerCase())
       )
       .forEach(face => {
-        const season = face.confirmed_season || 'unassigned';
+        const season = face.confirmed_season?.toLowerCase() || 'unassigned';
         const subtype = face.confirmed_subtype || 'unassigned';
         
         if (!groups[season]) groups[season] = {};
@@ -85,6 +88,18 @@ export function ConfirmedGalleryTab() {
     
     return groups;
   }, [confirmedFaces, searchTerm]);
+
+  // Sort seasons in proper order
+  const sortedSeasons = useMemo(() => {
+    return Object.keys(groupedFaces).sort((a, b) => {
+      const aIndex = SEASON_ORDER.indexOf(a.toLowerCase());
+      const bIndex = SEASON_ORDER.indexOf(b.toLowerCase());
+      if (aIndex === -1 && bIndex === -1) return a.localeCompare(b);
+      if (aIndex === -1) return 1;
+      if (bIndex === -1) return -1;
+      return aIndex - bIndex;
+    });
+  }, [groupedFaces]);
 
   const totalFiltered = useMemo(() => {
     return Object.values(groupedFaces).reduce((sum, subtypes) => 
@@ -229,7 +244,9 @@ export function ConfirmedGalleryTab() {
 
       {/* Grouped Display */}
       <div className="space-y-4">
-        {Object.entries(groupedFaces).map(([season, subtypes]) => (
+        {sortedSeasons.map((season) => {
+          const subtypes = groupedFaces[season];
+          return (
           <Collapsible 
             key={season} 
             open={expandedSeasons.has(season)}
@@ -367,7 +384,8 @@ export function ConfirmedGalleryTab() {
               })}
             </CollapsibleContent>
           </Collapsible>
-        ))}
+          );
+        })}
 
         {Object.keys(groupedFaces).length === 0 && (
           <div className="text-center py-16 bg-muted/30 rounded-xl border-2 border-dashed">
