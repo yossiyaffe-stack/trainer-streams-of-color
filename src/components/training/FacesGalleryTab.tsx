@@ -33,7 +33,9 @@ import {
   Trash2,
   FolderCheck,
   FolderOpen,
-  ChevronDown
+  ChevronDown,
+  Clock,
+  Palette
 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
@@ -72,12 +74,22 @@ interface FaceImage {
   color_label?: ColorLabel | null;
 }
 
-const SEASON_COLORS: Record<string, string> = {
-  spring: 'bg-amber-100 text-amber-800 border-amber-300',
-  summer: 'bg-blue-100 text-blue-800 border-blue-300',
-  autumn: 'bg-orange-100 text-orange-800 border-orange-300',
-  winter: 'bg-purple-100 text-purple-800 border-purple-300',
-};
+interface SubtypeInfo {
+  id: string;
+  name: string;
+  slug: string;
+  season: string;
+  time_period: string | null;
+}
+
+const SEASON_CONFIG = {
+  spring: { emoji: '🌸', color: 'bg-spring/20 text-spring border-spring', gradient: 'from-spring/20 to-spring/5' },
+  summer: { emoji: '☀️', color: 'bg-summer/20 text-summer border-summer', gradient: 'from-summer/20 to-summer/5' },
+  autumn: { emoji: '🍂', color: 'bg-autumn/20 text-autumn border-autumn', gradient: 'from-autumn/20 to-autumn/5' },
+  winter: { emoji: '❄️', color: 'bg-winter/20 text-winter border-winter', gradient: 'from-winter/20 to-winter/5' },
+} as const;
+
+const TIME_PERIODS = ['Early', 'Mid', 'Late'] as const;
 
 const STATUS_COLORS: Record<string, string> = {
   unlabeled: 'bg-muted text-muted-foreground',
@@ -97,7 +109,8 @@ function FaceCard({
   onSelect, 
   onClick, 
   onAnalyze,
-  getImageUrl
+  getImageUrl,
+  compact = false
 }: { 
   face: FaceImage;
   index: number;
@@ -107,6 +120,7 @@ function FaceCard({
   onClick: () => void;
   onAnalyze: (face: FaceImage) => void;
   getImageUrl: (face: FaceImage) => string;
+  compact?: boolean;
 }) {
   const isUnlabeled = !face.color_label?.label_status || face.color_label.label_status === 'unlabeled';
   
@@ -133,7 +147,7 @@ function FaceCard({
       {/* Analyzing overlay */}
       {isAnalyzing && (
         <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 text-white animate-spin" />
+          <Loader2 className="w-6 h-6 text-white animate-spin" />
         </div>
       )}
 
@@ -142,23 +156,23 @@ function FaceCard({
         "absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent transition-opacity",
         isAnalyzing ? "opacity-0" : "opacity-0 group-hover:opacity-100"
       )}>
-        <div className="absolute bottom-0 left-0 right-0 p-2">
-          <p className="text-white text-xs truncate font-medium">
+        <div className="absolute bottom-0 left-0 right-0 p-1.5">
+          <p className="text-white text-[10px] truncate font-medium">
             {face.color_label?.confirmed_subtype || face.color_label?.ai_predicted_subtype || 'Unlabeled'}
           </p>
-          {face.color_label?.ai_confidence && (
-            <p className="text-white/70 text-xs">
-              {Math.round(face.color_label.ai_confidence)}% confidence
+          {face.color_label?.ai_confidence && !compact && (
+            <p className="text-white/70 text-[10px]">
+              {Math.round(face.color_label.ai_confidence)}%
             </p>
           )}
         </div>
         
         {/* Quick analyze button */}
-        {isUnlabeled && (
+        {isUnlabeled && !compact && (
           <Button
             size="sm"
             variant="secondary"
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 gap-1"
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 gap-1 text-xs h-7 px-2"
             onClick={(e) => {
               e.stopPropagation();
               onAnalyze(face);
@@ -173,7 +187,7 @@ function FaceCard({
       {/* Selection checkbox */}
       <div 
         className={cn(
-          "absolute top-1 left-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
+          "absolute top-1 left-1 w-4 h-4 rounded border-2 flex items-center justify-center transition-all",
           isSelected ? "bg-primary border-primary text-primary-foreground" : "border-white/50 bg-black/30 opacity-0 group-hover:opacity-100"
         )}
         onClick={(e) => {
@@ -181,20 +195,8 @@ function FaceCard({
           onSelect(face.id, e);
         }}
       >
-        {isSelected && <span className="text-xs">✓</span>}
+        {isSelected && <span className="text-[10px]">✓</span>}
       </div>
-
-      {/* Season badge */}
-      {face.color_label?.confirmed_season && (
-        <Badge 
-          className={cn(
-            'absolute top-1 right-1 text-[10px] px-1.5 py-0.5',
-            SEASON_COLORS[face.color_label.confirmed_season] || 'bg-muted'
-          )}
-        >
-          {face.color_label.confirmed_season}
-        </Badge>
-      )}
 
       {/* Status indicator */}
       {face.color_label?.label_status && face.color_label.label_status !== 'unlabeled' && (
@@ -207,14 +209,6 @@ function FaceCard({
           'bg-muted-foreground'
         )} />
       )}
-
-      {/* Source badge */}
-      <Badge 
-        variant="secondary" 
-        className="absolute bottom-1 right-1 text-[10px] px-1.5 py-0.5 bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity"
-      >
-        {face.source}
-      </Badge>
     </motion.div>
   );
 }
@@ -222,12 +216,15 @@ function FaceCard({
 export function FacesGalleryTab() {
   const { toast } = useToast();
   const [faces, setFaces] = useState<FaceImage[]>([]);
+  const [subtypes, setSubtypes] = useState<SubtypeInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [offset, setOffset] = useState(0);
   const [analyzingIds, setAnalyzingIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedFace, setSelectedFace] = useState<FaceImage | null>(null);
+  const [expandedSeasons, setExpandedSeasons] = useState<Set<string>>(new Set(['spring', 'summer', 'autumn', 'winter']));
+  const [expandedPeriods, setExpandedPeriods] = useState<Set<string>>(new Set());
   const limit = 40;
 
   // Filter states
@@ -237,65 +234,55 @@ export function FacesGalleryTab() {
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
   const [confidenceFilter, setConfidenceFilter] = useState<ConfidenceFilter>('all');
 
-  const fetchFaces = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      // Build query for face_images with FULL color_labels join
-      let query = supabase
-        .from('face_images')
-        .select(`
-          id,
-          storage_path,
-          thumbnail_path,
-          source,
-          source_id,
-          quality_score,
-          created_at,
-          color_labels (
-            confirmed_season,
-            confirmed_subtype,
-            label_status,
-            ai_confidence,
-            ai_predicted_subtype,
-            skin_hex,
-            skin_tone_name,
-            undertone,
-            eye_hex,
-            eye_color_name,
-            eye_details,
-            hair_hex,
-            hair_color_name,
-            hair_details,
-            contrast_level,
-            contrast_value,
-            depth,
-            depth_value,
-            ai_reasoning,
-            ai_alternatives
-          )
-        `, { count: 'exact' });
+      const [facesRes, subtypesRes] = await Promise.all([
+        supabase
+          .from('face_images')
+          .select(`
+            id,
+            storage_path,
+            thumbnail_path,
+            source,
+            source_id,
+            quality_score,
+            created_at,
+            color_labels (
+              confirmed_season,
+              confirmed_subtype,
+              label_status,
+              ai_confidence,
+              ai_predicted_subtype,
+              skin_hex,
+              skin_tone_name,
+              undertone,
+              eye_hex,
+              eye_color_name,
+              eye_details,
+              hair_hex,
+              hair_color_name,
+              hair_details,
+              contrast_level,
+              contrast_value,
+              depth,
+              depth_value,
+              ai_reasoning,
+              ai_alternatives
+            )
+          `, { count: 'exact' })
+          .order('created_at', { ascending: false })
+          .range(offset, offset + limit - 1),
+        supabase
+          .from('subtypes')
+          .select('id, name, slug, season, time_period')
+          .eq('is_active', true)
+      ]);
 
-      // Apply source filter
-      if (sourceFilter !== 'all') {
-        query = query.eq('source', sourceFilter);
-      }
+      if (facesRes.error) throw facesRes.error;
+      if (subtypesRes.error) throw subtypesRes.error;
 
-      // Apply search filter
-      if (searchQuery) {
-        query = query.or(`source_id.ilike.%${searchQuery}%`);
-      }
-
-      // Apply pagination
-      query = query
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
-
-      const { data, error, count } = await query;
-
-      if (error) throw error;
-
-      // Transform data to flatten color_labels
-      const transformed = (data || []).map((face: any) => ({
+      const transformed = (facesRes.data || []).map((face: any) => ({
         ...face,
         color_label: Array.isArray(face.color_labels) 
           ? face.color_labels[0] 
@@ -303,9 +290,10 @@ export function FacesGalleryTab() {
       }));
 
       setFaces(transformed);
-      setTotalCount(count || 0);
+      setTotalCount(facesRes.count || 0);
+      setSubtypes(subtypesRes.data || []);
     } catch (err) {
-      console.error('Error fetching faces:', err);
+      console.error('Error fetching data:', err);
       toast({
         title: 'Error',
         description: 'Failed to load face images',
@@ -317,28 +305,35 @@ export function FacesGalleryTab() {
   };
 
   useEffect(() => {
-    fetchFaces();
-  }, [offset, sourceFilter, searchQuery]);
+    fetchData();
+  }, [offset]);
 
-  // Client-side filtering for label-related filters (since they're in joined table)
+  // Client-side filtering
   const filteredFaces = useMemo(() => {
     let result = [...faces];
 
-    // Filter by season
+    if (sourceFilter !== 'all') {
+      result = result.filter(f => f.source === sourceFilter);
+    }
+
+    if (searchQuery) {
+      result = result.filter(f => 
+        f.source_id?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
     if (seasonFilter !== 'all') {
       result = result.filter(f => 
         f.color_label?.confirmed_season?.toLowerCase() === seasonFilter
       );
     }
 
-    // Filter by status
     if (statusFilter !== 'all') {
       result = result.filter(f => 
         f.color_label?.label_status === statusFilter
       );
     }
 
-    // Filter by confidence
     if (confidenceFilter !== 'all') {
       result = result.filter(f => {
         const confidence = f.color_label?.ai_confidence || 0;
@@ -352,9 +347,9 @@ export function FacesGalleryTab() {
     }
 
     return result;
-  }, [faces, seasonFilter, statusFilter, confidenceFilter]);
+  }, [faces, seasonFilter, statusFilter, confidenceFilter, sourceFilter, searchQuery]);
 
-  // Split faces into confirmed and unconfirmed groups
+  // Split faces into confirmed (for 3-tier view) and unconfirmed
   const { confirmedFaces, unconfirmedFaces } = useMemo(() => {
     const confirmed = filteredFaces.filter(f => 
       f.color_label?.label_status === 'expert_verified' || 
@@ -366,6 +361,62 @@ export function FacesGalleryTab() {
     );
     return { confirmedFaces: confirmed, unconfirmedFaces: unconfirmed };
   }, [filteredFaces]);
+
+  // Build 3-tier hierarchy for confirmed faces: Season → Time Period → Subtype
+  const confirmedHierarchy = useMemo(() => {
+    const seasons = ['spring', 'summer', 'autumn', 'winter'];
+    
+    return seasons.map(season => {
+      const seasonFaces = confirmedFaces.filter(
+        f => f.color_label?.confirmed_season?.toLowerCase() === season
+      );
+      const seasonSubtypes = subtypes.filter(s => s.season.toLowerCase() === season);
+      
+      // Group by time period
+      const timePeriods = TIME_PERIODS.map(period => {
+        const periodSubtypes = seasonSubtypes.filter(s => 
+          s.time_period?.toLowerCase() === period.toLowerCase()
+        );
+        
+        // Find faces linked to each subtype in this period
+        const subtypeGroups = periodSubtypes.map(subtype => {
+          const subtypeFaces = seasonFaces.filter(f => 
+            f.color_label?.confirmed_subtype?.toLowerCase() === subtype.slug.toLowerCase() ||
+            f.color_label?.confirmed_subtype?.toLowerCase() === subtype.name.toLowerCase()
+          );
+          return { subtype, faces: subtypeFaces };
+        }).filter(g => g.faces.length > 0);
+        
+        return { period, subtypes: subtypeGroups };
+      }).filter(tp => tp.subtypes.length > 0);
+      
+      // Faces with this season but no matching subtype time period
+      const categorizedIds = new Set(
+        timePeriods.flatMap(tp => tp.subtypes.flatMap(s => s.faces.map(f => f.id)))
+      );
+      const uncategorizedFaces = seasonFaces.filter(f => !categorizedIds.has(f.id));
+      
+      return { season, timePeriods, uncategorizedFaces };
+    }).filter(node => node.timePeriods.length > 0 || node.uncategorizedFaces.length > 0);
+  }, [confirmedFaces, subtypes]);
+
+  const toggleExpandSeason = (season: string) => {
+    setExpandedSeasons(prev => {
+      const next = new Set(prev);
+      if (next.has(season)) next.delete(season);
+      else next.add(season);
+      return next;
+    });
+  };
+
+  const toggleExpandPeriod = (key: string) => {
+    setExpandedPeriods(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -393,8 +444,7 @@ export function FacesGalleryTab() {
         description: `Predicted: ${data.analysis?.predicted_subtype || 'Unknown'} (${data.analysis?.confidence || 0}% confidence)`,
       });
 
-      // Refresh to show updated data
-      fetchFaces();
+      fetchData();
     } catch (err) {
       console.error('Analysis error:', err);
       toast({
@@ -415,6 +465,7 @@ export function FacesGalleryTab() {
     const toAnalyze = filteredFaces.filter(f => selectedIds.has(f.id));
     for (const face of toAnalyze) {
       await analyzeFace(face);
+      await new Promise(resolve => setTimeout(resolve, 1500));
     }
     setSelectedIds(new Set());
   };
@@ -423,7 +474,6 @@ export function FacesGalleryTab() {
     const idsToDelete = Array.from(selectedIds);
     
     try {
-      // First delete color_labels (child records)
       const { error: labelError } = await supabase
         .from('color_labels')
         .delete()
@@ -431,7 +481,6 @@ export function FacesGalleryTab() {
 
       if (labelError) throw labelError;
 
-      // Then delete face_images
       const { error: faceError } = await supabase
         .from('face_images')
         .delete()
@@ -445,7 +494,7 @@ export function FacesGalleryTab() {
       });
 
       setSelectedIds(new Set());
-      fetchFaces();
+      fetchData();
     } catch (err) {
       console.error('Delete error:', err);
       toast({
@@ -470,7 +519,6 @@ export function FacesGalleryTab() {
     
     for (let i = 0; i < unlabeled.length; i++) {
       await analyzeFace(unlabeled[i]);
-      // Add delay between calls to avoid rate limiting (1.5s between requests)
       if (i < unlabeled.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 1500));
       }
@@ -491,11 +539,9 @@ export function FacesGalleryTab() {
   };
 
   const getImageUrl = (face: FaceImage) => {
-    // If it's a URL, return directly
     if (face.storage_path.startsWith('http')) {
       return face.storage_path;
     }
-    // Otherwise, build Supabase storage URL
     const { data } = supabase.storage
       .from('face-images')
       .getPublicUrl(face.storage_path);
@@ -609,143 +655,219 @@ export function FacesGalleryTab() {
         </div>
       )}
 
-      {/* Face Grid - Split into Confirmed and Unconfirmed Folders */}
-      {filteredFaces.length > 0 && (
-        <div className="space-y-6">
-          {/* Confirmed Folder */}
-          <Collapsible defaultOpen className="space-y-3">
-            <div className="flex items-center gap-2">
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="flex-1 justify-between px-4 py-3 h-auto bg-success/10 hover:bg-success/20 border border-success/30 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <FolderCheck className="w-5 h-5 text-success" />
-                    <span className="font-semibold text-success">Confirmed</span>
-                    <Badge variant="secondary" className="bg-success/20 text-success">
-                      {confirmedFaces.length}
-                    </Badge>
-                  </div>
-                  <ChevronDown className="w-4 h-4 text-success transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                </Button>
-              </CollapsibleTrigger>
-              {confirmedFaces.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0"
-                  onClick={() => {
-                    const confirmedIds = confirmedFaces.map(f => f.id);
-                    const allSelected = confirmedIds.every(id => selectedIds.has(id));
-                    if (allSelected) {
-                      setSelectedIds(prev => {
-                        const next = new Set(prev);
-                        confirmedIds.forEach(id => next.delete(id));
-                        return next;
-                      });
-                    } else {
-                      setSelectedIds(prev => new Set([...prev, ...confirmedIds]));
-                    }
-                  }}
-                >
-                  {confirmedFaces.every(f => selectedIds.has(f.id)) ? 'Deselect All' : 'Select All'}
-                </Button>
-              )}
-            </div>
-            <CollapsibleContent>
-              {confirmedFaces.length > 0 ? (
-                <motion.div 
-                  className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 pt-2"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                >
-                  {confirmedFaces.map((face, index) => (
-                    <FaceCard
-                      key={face.id}
-                      face={face}
-                      index={index}
-                      isAnalyzing={analyzingIds.has(face.id)}
-                      isSelected={selectedIds.has(face.id)}
-                      onSelect={toggleSelection}
-                      onClick={() => setSelectedFace(face)}
-                      onAnalyze={analyzeFace}
-                      getImageUrl={getImageUrl}
-                    />
-                  ))}
-                </motion.div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground text-sm border border-dashed rounded-lg">
-                  No confirmed faces yet. Verify predictions to add them here.
-                </div>
-              )}
-            </CollapsibleContent>
-          </Collapsible>
+      {/* Confirmed Faces - 3-Tier Hierarchy View */}
+      {confirmedHierarchy.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <FolderCheck className="w-5 h-5 text-success" />
+            <h3 className="font-semibold text-lg">Confirmed Training Data</h3>
+            <Badge variant="secondary" className="bg-success/20 text-success">
+              {confirmedFaces.length} faces
+            </Badge>
+            <span className="text-xs text-muted-foreground ml-2">
+              Organized by Season → Time Period → Subtype
+            </span>
+          </div>
 
-          {/* Unconfirmed Folder */}
-          <Collapsible defaultOpen className="space-y-3">
-            <div className="flex items-center gap-2">
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="flex-1 justify-between px-4 py-3 h-auto bg-muted/50 hover:bg-muted border border-border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <FolderOpen className="w-5 h-5 text-muted-foreground" />
-                    <span className="font-semibold">Unconfirmed</span>
-                    <Badge variant="secondary">
-                      {unconfirmedFaces.length}
-                    </Badge>
-                  </div>
-                  <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                </Button>
-              </CollapsibleTrigger>
-              {unconfirmedFaces.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0"
-                  onClick={() => {
-                    const unconfirmedIds = unconfirmedFaces.map(f => f.id);
-                    const allSelected = unconfirmedIds.every(id => selectedIds.has(id));
-                    if (allSelected) {
-                      setSelectedIds(prev => {
-                        const next = new Set(prev);
-                        unconfirmedIds.forEach(id => next.delete(id));
-                        return next;
-                      });
-                    } else {
-                      setSelectedIds(prev => new Set([...prev, ...unconfirmedIds]));
-                    }
-                  }}
-                >
-                  {unconfirmedFaces.every(f => selectedIds.has(f.id)) ? 'Deselect All' : 'Select All'}
-                </Button>
-              )}
-            </div>
-            <CollapsibleContent>
-              {unconfirmedFaces.length > 0 ? (
-                <motion.div 
-                  className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 pt-2"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                >
-                  {unconfirmedFaces.map((face, index) => (
-                    <FaceCard
-                      key={face.id}
-                      face={face}
-                      index={index}
-                      isAnalyzing={analyzingIds.has(face.id)}
-                      isSelected={selectedIds.has(face.id)}
-                      onSelect={toggleSelection}
-                      onClick={() => setSelectedFace(face)}
-                      onAnalyze={analyzeFace}
-                      getImageUrl={getImageUrl}
-                    />
-                  ))}
-                </motion.div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground text-sm border border-dashed rounded-lg">
-                  All faces have been confirmed!
-                </div>
-              )}
-            </CollapsibleContent>
-          </Collapsible>
+          {confirmedHierarchy.map(seasonNode => {
+            const config = SEASON_CONFIG[seasonNode.season as keyof typeof SEASON_CONFIG];
+            const isExpanded = expandedSeasons.has(seasonNode.season);
+            const totalCount = seasonNode.uncategorizedFaces.length + 
+              seasonNode.timePeriods.reduce((acc, tp) => 
+                acc + tp.subtypes.reduce((a, s) => a + s.faces.length, 0), 0);
+            
+            return (
+              <Collapsible 
+                key={seasonNode.season} 
+                open={isExpanded} 
+                onOpenChange={() => toggleExpandSeason(seasonNode.season)}
+              >
+                <CollapsibleTrigger asChild>
+                  <button className={cn(
+                    "w-full flex items-center justify-between p-3 rounded-lg border-2 transition-colors hover:opacity-90",
+                    config.color
+                  )}>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">{config.emoji}</span>
+                      <span className="font-semibold capitalize">{seasonNode.season}</span>
+                      <Badge variant="secondary">{totalCount} faces</Badge>
+                    </div>
+                    <ChevronDown className={cn(
+                      "w-4 h-4 transition-transform",
+                      isExpanded && "rotate-180"
+                    )} />
+                  </button>
+                </CollapsibleTrigger>
+                
+                <CollapsibleContent className="pt-3 pl-4 space-y-3">
+                  {/* Time Periods */}
+                  {seasonNode.timePeriods.map(periodNode => {
+                    const periodKey = `${seasonNode.season}-${periodNode.period}`;
+                    const isPeriodExpanded = expandedPeriods.has(periodKey);
+                    const periodTotal = periodNode.subtypes.reduce((a, s) => a + s.faces.length, 0);
+                    
+                    return (
+                      <Collapsible 
+                        key={periodKey} 
+                        open={isPeriodExpanded}
+                        onOpenChange={() => toggleExpandPeriod(periodKey)}
+                      >
+                        <CollapsibleTrigger asChild>
+                          <button className="w-full flex items-center gap-3 p-2.5 bg-card rounded-lg border hover:bg-muted/50 transition-colors">
+                            <Clock className="w-4 h-4 text-muted-foreground" />
+                            <span className="font-medium">{periodNode.period} {seasonNode.season}</span>
+                            <Badge variant="outline" className="ml-auto">{periodTotal}</Badge>
+                            <ChevronDown className={cn(
+                              "w-4 h-4 transition-transform",
+                              isPeriodExpanded && "rotate-180"
+                            )} />
+                          </button>
+                        </CollapsibleTrigger>
+                        
+                        <CollapsibleContent className="pt-2 pl-4 space-y-3">
+                          {periodNode.subtypes.map(subtypeGroup => (
+                            <div key={subtypeGroup.subtype.id} className="space-y-2">
+                              <div className="flex items-center gap-2 text-sm">
+                                <Palette className="w-3.5 h-3.5 text-primary" />
+                                <span className="font-medium text-primary">{subtypeGroup.subtype.name}</span>
+                                <span className="text-muted-foreground">({subtypeGroup.faces.length})</span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="ml-auto h-6 text-xs"
+                                  onClick={() => {
+                                    const faceIds = subtypeGroup.faces.map(f => f.id);
+                                    const allSelected = faceIds.every(id => selectedIds.has(id));
+                                    if (allSelected) {
+                                      setSelectedIds(prev => {
+                                        const next = new Set(prev);
+                                        faceIds.forEach(id => next.delete(id));
+                                        return next;
+                                      });
+                                    } else {
+                                      setSelectedIds(prev => new Set([...prev, ...faceIds]));
+                                    }
+                                  }}
+                                >
+                                  {subtypeGroup.faces.every(f => selectedIds.has(f.id)) ? 'Deselect' : 'Select All'}
+                                </Button>
+                              </div>
+                              <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2">
+                                {subtypeGroup.faces.map((face, idx) => (
+                                  <FaceCard
+                                    key={face.id}
+                                    face={face}
+                                    index={idx}
+                                    isAnalyzing={analyzingIds.has(face.id)}
+                                    isSelected={selectedIds.has(face.id)}
+                                    onSelect={toggleSelection}
+                                    onClick={() => setSelectedFace(face)}
+                                    onAnalyze={analyzeFace}
+                                    getImageUrl={getImageUrl}
+                                    compact
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </CollapsibleContent>
+                      </Collapsible>
+                    );
+                  })}
+                  
+                  {/* Uncategorized faces for this season */}
+                  {seasonNode.uncategorizedFaces.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground p-2">
+                        <span className="italic">General {seasonNode.season} (no time period assigned)</span>
+                        <Badge variant="outline">{seasonNode.uncategorizedFaces.length}</Badge>
+                      </div>
+                      <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2">
+                        {seasonNode.uncategorizedFaces.map((face, idx) => (
+                          <FaceCard
+                            key={face.id}
+                            face={face}
+                            index={idx}
+                            isAnalyzing={analyzingIds.has(face.id)}
+                            isSelected={selectedIds.has(face.id)}
+                            onSelect={toggleSelection}
+                            onClick={() => setSelectedFace(face)}
+                            onAnalyze={analyzeFace}
+                            getImageUrl={getImageUrl}
+                            compact
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          })}
         </div>
+      )}
+
+      {/* Unconfirmed Folder */}
+      {unconfirmedFaces.length > 0 && (
+        <Collapsible defaultOpen className="space-y-3">
+          <div className="flex items-center gap-2">
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="flex-1 justify-between px-4 py-3 h-auto bg-muted/50 hover:bg-muted border border-border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <FolderOpen className="w-5 h-5 text-muted-foreground" />
+                  <span className="font-semibold">Unconfirmed / Pending Review</span>
+                  <Badge variant="secondary">
+                    {unconfirmedFaces.length}
+                  </Badge>
+                </div>
+                <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+              </Button>
+            </CollapsibleTrigger>
+            {unconfirmedFaces.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => {
+                  const unconfirmedIds = unconfirmedFaces.map(f => f.id);
+                  const allSelected = unconfirmedIds.every(id => selectedIds.has(id));
+                  if (allSelected) {
+                    setSelectedIds(prev => {
+                      const next = new Set(prev);
+                      unconfirmedIds.forEach(id => next.delete(id));
+                      return next;
+                    });
+                  } else {
+                    setSelectedIds(prev => new Set([...prev, ...unconfirmedIds]));
+                  }
+                }}
+              >
+                {unconfirmedFaces.every(f => selectedIds.has(f.id)) ? 'Deselect All' : 'Select All'}
+              </Button>
+            )}
+          </div>
+          <CollapsibleContent>
+            <motion.div 
+              className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 pt-2"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              {unconfirmedFaces.map((face, index) => (
+                <FaceCard
+                  key={face.id}
+                  face={face}
+                  index={index}
+                  isAnalyzing={analyzingIds.has(face.id)}
+                  isSelected={selectedIds.has(face.id)}
+                  onSelect={toggleSelection}
+                  onClick={() => setSelectedFace(face)}
+                  onAnalyze={analyzeFace}
+                  getImageUrl={getImageUrl}
+                />
+              ))}
+            </motion.div>
+          </CollapsibleContent>
+        </Collapsible>
       )}
 
       {/* No results for filters */}
@@ -792,22 +914,19 @@ export function FacesGalleryTab() {
             onClose={() => setSelectedFace(null)}
             onAnalyze={async (face) => {
               await analyzeFace(face);
-              // Update the selected face with new data
               const updated = faces.find(f => f.id === face.id);
               if (updated) setSelectedFace(updated);
             }}
             onUpdate={() => {
-              fetchFaces();
+              fetchData();
               setSelectedFace(null);
             }}
             onDelete={async (id) => {
-              // Delete color_labels first
               await supabase.from('color_labels').delete().eq('face_image_id', id);
-              // Then delete face_image
               const { error } = await supabase.from('face_images').delete().eq('id', id);
               if (error) throw error;
               toast({ title: 'Deleted', description: 'Face removed successfully' });
-              fetchFaces();
+              fetchData();
             }}
             isAnalyzing={analyzingIds.has(selectedFace.id)}
           />
