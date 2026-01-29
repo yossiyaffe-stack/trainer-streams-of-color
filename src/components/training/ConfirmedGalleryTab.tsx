@@ -41,12 +41,15 @@ interface ConfirmedFace {
   contrast_level: string | null;
 }
 
+// Proper season order - defined outside component
+const SEASON_ORDER = ['spring', 'summer', 'autumn', 'winter'];
+
 export function ConfirmedGalleryTab() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedFace, setSelectedFace] = useState<ConfirmedFace | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [expandedSeasons, setExpandedSeasons] = useState<Set<string>>(new Set(['spring', 'summer', 'autumn', 'winter']));
+  const [expandedSeasons, setExpandedSeasons] = useState<Set<string>>(new Set(SEASON_ORDER));
   const [expandedSubtypes, setExpandedSubtypes] = useState<Set<string>>(new Set());
 
   // Fetch confirmed faces (expert_verified or nechama_verified)
@@ -63,9 +66,6 @@ export function ConfirmedGalleryTab() {
       return (data || []) as ConfirmedFace[];
     },
   });
-
-  // Proper season order
-  const SEASON_ORDER = ['spring', 'summer', 'autumn', 'winter'];
 
   // Group by season and subtype
   const groupedFaces = useMemo(() => {
