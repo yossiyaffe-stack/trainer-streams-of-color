@@ -614,18 +614,42 @@ export function FacesGalleryTab() {
         <div className="space-y-6">
           {/* Confirmed Folder */}
           <Collapsible defaultOpen className="space-y-3">
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between px-4 py-3 h-auto bg-success/10 hover:bg-success/20 border border-success/30 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <FolderCheck className="w-5 h-5 text-success" />
-                  <span className="font-semibold text-success">Confirmed</span>
-                  <Badge variant="secondary" className="bg-success/20 text-success">
-                    {confirmedFaces.length}
-                  </Badge>
-                </div>
-                <ChevronDown className="w-4 h-4 text-success transition-transform duration-200 group-data-[state=open]:rotate-180" />
-              </Button>
-            </CollapsibleTrigger>
+            <div className="flex items-center gap-2">
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="flex-1 justify-between px-4 py-3 h-auto bg-success/10 hover:bg-success/20 border border-success/30 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <FolderCheck className="w-5 h-5 text-success" />
+                    <span className="font-semibold text-success">Confirmed</span>
+                    <Badge variant="secondary" className="bg-success/20 text-success">
+                      {confirmedFaces.length}
+                    </Badge>
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-success transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                </Button>
+              </CollapsibleTrigger>
+              {confirmedFaces.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => {
+                    const confirmedIds = confirmedFaces.map(f => f.id);
+                    const allSelected = confirmedIds.every(id => selectedIds.has(id));
+                    if (allSelected) {
+                      setSelectedIds(prev => {
+                        const next = new Set(prev);
+                        confirmedIds.forEach(id => next.delete(id));
+                        return next;
+                      });
+                    } else {
+                      setSelectedIds(prev => new Set([...prev, ...confirmedIds]));
+                    }
+                  }}
+                >
+                  {confirmedFaces.every(f => selectedIds.has(f.id)) ? 'Deselect All' : 'Select All'}
+                </Button>
+              )}
+            </div>
             <CollapsibleContent>
               {confirmedFaces.length > 0 ? (
                 <motion.div 
@@ -657,18 +681,42 @@ export function FacesGalleryTab() {
 
           {/* Unconfirmed Folder */}
           <Collapsible defaultOpen className="space-y-3">
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between px-4 py-3 h-auto bg-muted/50 hover:bg-muted border border-border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <FolderOpen className="w-5 h-5 text-muted-foreground" />
-                  <span className="font-semibold">Unconfirmed</span>
-                  <Badge variant="secondary">
-                    {unconfirmedFaces.length}
-                  </Badge>
-                </div>
-                <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
-              </Button>
-            </CollapsibleTrigger>
+            <div className="flex items-center gap-2">
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="flex-1 justify-between px-4 py-3 h-auto bg-muted/50 hover:bg-muted border border-border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <FolderOpen className="w-5 h-5 text-muted-foreground" />
+                    <span className="font-semibold">Unconfirmed</span>
+                    <Badge variant="secondary">
+                      {unconfirmedFaces.length}
+                    </Badge>
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                </Button>
+              </CollapsibleTrigger>
+              {unconfirmedFaces.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => {
+                    const unconfirmedIds = unconfirmedFaces.map(f => f.id);
+                    const allSelected = unconfirmedIds.every(id => selectedIds.has(id));
+                    if (allSelected) {
+                      setSelectedIds(prev => {
+                        const next = new Set(prev);
+                        unconfirmedIds.forEach(id => next.delete(id));
+                        return next;
+                      });
+                    } else {
+                      setSelectedIds(prev => new Set([...prev, ...unconfirmedIds]));
+                    }
+                  }}
+                >
+                  {unconfirmedFaces.every(f => selectedIds.has(f.id)) ? 'Deselect All' : 'Select All'}
+                </Button>
+              )}
+            </div>
             <CollapsibleContent>
               {unconfirmedFaces.length > 0 ? (
                 <motion.div 
