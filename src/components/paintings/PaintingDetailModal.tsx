@@ -38,6 +38,7 @@ interface Subtype {
   name: string;
   slug: string;
   season: string;
+  time_period?: string | null;
 }
 
 interface PaintingDetailModalProps {
@@ -168,7 +169,7 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
       setLoadingSubtypes(true);
       const { data, error } = await supabase
         .from('subtypes')
-        .select('id, name, slug, season')
+        .select('id, name, slug, season, time_period')
         .eq('is_active', true)
         .order('season')
         .order('display_order');
@@ -836,14 +837,22 @@ export function PaintingDetailModal({ painting: initialPainting, onClose, onDele
                         {filteredSubtypes.map(subtype => (
                           <label
                             key={subtype.id}
-                            className="flex items-center gap-2 p-1.5 rounded hover:bg-muted/50 cursor-pointer"
+                            className={`flex items-center gap-2 p-1.5 rounded hover:bg-muted/50 cursor-pointer ${
+                              !subtype.time_period ? 'opacity-70 italic' : ''
+                            }`}
                           >
                             <Checkbox
                               checked={selectedSubtypes.has(subtype.id)}
                               onCheckedChange={() => handleSubtypeToggle(subtype.id)}
                               disabled={saving}
                             />
-                            <span className="text-sm">{subtype.name}</span>
+                            <span className="text-sm flex items-center gap-1">
+                              {!subtype.time_period && <span className="text-orange-500 text-xs">⚠</span>}
+                              {subtype.name}
+                              {subtype.time_period && (
+                                <span className="text-muted-foreground text-xs capitalize">({subtype.time_period})</span>
+                              )}
+                            </span>
                           </label>
                         ))}
                       </div>

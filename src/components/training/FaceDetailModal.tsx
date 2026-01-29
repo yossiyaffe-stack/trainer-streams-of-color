@@ -656,19 +656,34 @@ export function FaceDetailModal({ face, onClose, onAnalyze, onUpdate, onDelete, 
                     <SelectContent className="bg-popover max-h-60">
                       {filteredSubtypes.length > 0 ? (
                         filteredSubtypes.map(subtype => (
-                          <SelectItem key={subtype.id} value={subtype.name}>
-                            {subtype.time_period && (
+                          <SelectItem 
+                            key={subtype.id} 
+                            value={subtype.name}
+                            className={cn(
+                              !subtype.time_period && "text-muted-foreground italic opacity-70"
+                            )}
+                          >
+                            {subtype.time_period ? (
                               <span className="text-muted-foreground text-xs mr-1 capitalize">
                                 ({subtype.time_period})
                               </span>
+                            ) : (
+                              <span className="text-orange-500 text-xs mr-1">⚠</span>
                             )}
                             {subtype.name}
                           </SelectItem>
                         ))
                       ) : (
                         subtypes.map(subtype => (
-                          <SelectItem key={subtype.id} value={subtype.name}>
+                          <SelectItem 
+                            key={subtype.id} 
+                            value={subtype.name}
+                            className={cn(
+                              !subtype.time_period && "text-muted-foreground italic opacity-70"
+                            )}
+                          >
                             <span className="capitalize text-muted-foreground text-xs mr-2">{subtype.season}</span>
+                            {!subtype.time_period && <span className="text-orange-500 text-xs mr-1">⚠</span>}
                             {subtype.name}
                           </SelectItem>
                         ))
