@@ -6,8 +6,9 @@ import { Footer } from '@/components/landing/Footer';
 import { PaintingUpload } from '@/components/paintings/PaintingUpload';
 import { UnifiedGallery } from '@/components/paintings/UnifiedGallery';
 import { PaletteGalleryTab } from '@/components/paintings/PaletteGalleryTab';
+import { ExportPaintingsBundle } from '@/components/paintings/ExportPaintingsBundle';
 import { HubProvider } from '@/contexts/HubContext';
-import { Upload, Grid3X3, Library, Star } from 'lucide-react';
+import { Upload, Grid3X3, Library, Star, Settings } from 'lucide-react';
 
 export default function Paintings() {
   const [activeTab, setActiveTab] = useState('gallery');
@@ -39,7 +40,7 @@ export default function Paintings() {
                     </div>
                   </div>
                   
-                  <TabsList className="grid grid-cols-3 h-12 bg-card border-2 border-primary/30 shadow-lg rounded-xl p-1">
+                  <TabsList className="grid grid-cols-4 h-12 bg-card border-2 border-primary/30 shadow-lg rounded-xl p-1">
                     <TabsTrigger 
                       value="upload" 
                       className="flex items-center gap-2 px-4 font-semibold rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
@@ -60,6 +61,13 @@ export default function Paintings() {
                     >
                       <Star className="w-4 h-4" />
                       <span className="hidden sm:inline">Palette</span>
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="export" 
+                      className="flex items-center gap-2 px-4 font-semibold rounded-lg data-[state=active]:bg-muted data-[state=active]:shadow-md transition-all"
+                    >
+                      <Settings className="w-4 h-4" />
+                      <span className="hidden sm:inline">Export</span>
                     </TabsTrigger>
                   </TabsList>
                 </div>
@@ -85,6 +93,16 @@ export default function Paintings() {
 
                 <TabsContent value="palette" className="mt-0">
                   <PaletteGalleryTab />
+                </TabsContent>
+
+                <TabsContent value="export" className="mt-0">
+                  <div className="max-w-2xl">
+                    <h2 className="font-serif text-2xl font-bold mb-4">Export & Migration</h2>
+                    <p className="text-muted-foreground mb-6">
+                      Download all painting library components to migrate to another project.
+                    </p>
+                    <ExportPaintingsBundle />
+                  </div>
                 </TabsContent>
               </Tabs>
             </motion.div>
