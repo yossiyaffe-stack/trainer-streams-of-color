@@ -13,6 +13,7 @@ import { BatchReanalysis } from '@/components/training/BatchReanalysis';
 import { FacesUploadTab } from '@/components/training/FacesUploadTab';
 import { FaceDatasetsTab } from '@/components/training/FaceDatasetsTab';
 import { ConfirmedGalleryTab } from '@/components/training/ConfirmedGalleryTab';
+import { ExportTrainingBundle } from '@/components/training/ExportTrainingBundle';
 
 
 import { FacesGalleryTab } from '@/components/training/FacesGalleryTab';
@@ -146,6 +147,11 @@ export default function Training() {
               skin tone, eye color, hair color, undertone, and contrast—then review and correct predictions 
               to improve model accuracy over time.
             </p>
+            
+            {/* Export Bundle */}
+            <div className="mt-6">
+              <ExportTrainingBundle />
+            </div>
           </motion.div>
 
           {/* Stats Overview */}
