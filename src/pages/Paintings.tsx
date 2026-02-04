@@ -25,10 +25,10 @@ export default function Paintings() {
         <Header />
         
         <main className="pt-16">
-          {/* Sticky Tab Navigation */}
-          <div className="sticky top-16 z-40 bg-background/95 backdrop-blur-sm border-b shadow-sm">
-            <div className="container mx-auto px-4 py-4">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            {/* Sticky Tab Navigation */}
+            <div className="sticky top-16 z-40 bg-background/95 backdrop-blur-sm border-b shadow-sm">
+              <div className="container mx-auto px-4 py-4">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -71,18 +71,16 @@ export default function Paintings() {
                     </TabsTrigger>
                   </TabsList>
                 </div>
-              </Tabs>
+              </div>
             </div>
-          </div>
 
-          {/* Tab Content */}
-          <div className="container mx-auto px-4 py-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="max-w-7xl mx-auto"
-            >
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
+            {/* Tab Content */}
+            <div className="container mx-auto px-4 py-6">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="max-w-7xl mx-auto"
+              >
                 <TabsContent value="upload" className="mt-0">
                   <PaintingUpload onUploadComplete={handleUploadComplete} />
                 </TabsContent>
@@ -104,9 +102,9 @@ export default function Paintings() {
                     <ExportPaintingsBundle />
                   </div>
                 </TabsContent>
-              </Tabs>
-            </motion.div>
-          </div>
+              </motion.div>
+            </div>
+          </Tabs>
         </main>
 
         <Footer />
